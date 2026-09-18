@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nanya Dong — Teman Lokal yang Tau Segalanya</title>
+<meta name="description" content="Nanya Dong — platform AI untuk menemukan tempat makan, nongkrong, ahli lokal, dan hidden gems di Indonesia. Mulai dari Jabodetabek.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #0D8A6A;
+    --green-light: #E8F5F0;
+    --green-dark: #076B52;
+    --coral: #E8573D;
+    --coral-light: #FEF0ED;
+    --purple: #6C5CE7;
+    --purple-light: #F0EDFE;
+    --amber: #E59B0B;
+    --amber-light: #FEF5E0;
+    --red: #DC3545;
+    --red-light: #FDECEE;
+    --gray-50: #F8F8F7;
+    --gray-100: #F0EFED;
+    --gray-200: #E2E1DE;
+    --gray-400: #9C9B97;
+    --gray-600: #5E5D5A;
+    --gray-800: #2C2B29;
+    --gray-900: #1A1918;
+    --white: #FFFFFF;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-inner {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .logo-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: -0.5px;
+  }
+  .logo-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--coral);
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 1px;
+    vertical-align: baseline;
+    position: relative;
+    top: -1px;
+  }
+  .city-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-200);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-800);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .city-btn:hover { background: var(--gray-200); }
+  .city-pin {
+    width: 14px;
+    height: 14px;
+    color: var(--green);
+  }
+  .city-chevron {
+    width: 12px;
+    height: 12px;
+    color: var(--gray-400);
+  }
+
+  /* ---- Main ---- */
+  .main {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  /* ---- Hero ---- */
+  .hero {
+    padding: 28px 0 20px;
+    text-align: center;
+  }
+  .hero-tagline {
+    font-size: 14px;
+    color: var(--gray-600);
+    margin-bottom: 4px;
+  }
+  .hero-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+  }
+  .hero-title span {
+    color: var(--green);
+  }
+
+  /* ---- Chat Input ---- */
+  .chat-box {
+    margin-bottom: 24px;
+  }
+  .chat-input-wrap {
+    display: flex;
+    align-items: center;
+    background: var(--white);
+    border: 2px solid var(--green);
+    border-radius: var(--radius);
+    padding: 4px 4px 4px 16px;
+    box-shadow: 0 2px 12px rgba(13, 138, 106, 0.12);
+    transition: box-shadow 0.2s;
+  }
+  .chat-input-wrap:focus-within {
+    box-shadow: 0 2px 20px rgba(13, 138, 106, 0.2);
+  }
+  .chat-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--gray-900);
+    background: transparent;
+    padding: 10px 0;
+  }
+  .chat-input::placeholder {
+    color: var(--gray-400);
+  }
+  .chat-send {
+    background: var(--green);
+    border: none;
+    border-radius: var(--radius-sm);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .chat-send:hover { background: var(--green-dark); }
+  .chat-send svg {
+    width: 18px;
+    height: 18px;
+    color: var(--white);
+  }
+  .chat-hint {
+    font-size: 12px;
+    color: var(--gray-400);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  /* ---- Categories ---- */
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .categories {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .cat-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .cat-card:hover {
+    border-color: var(--gray-400);
+    transform: translateY(-1px);
+  }
+  .cat-card:active { transform: scale(0.98); }
+  .cat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+  .cat-card[data-cat="kuliner"] .cat-icon { background: var(--green-light); color: var(--green); }
+  .cat-card[data-cat="ahli"] .cat-icon { background: var(--purple-light); color: var(--purple); }
+  .cat-card[data-cat="tempat"] .cat-icon { background: var(--amber-light); color: var(--amber); }
+  .cat-card[data-cat="hunian"] .cat-icon { background: var(--coral-light); color: var(--coral); }
+  .cat-card[data-cat="info"] .cat-icon { background: var(--red-light); color: var(--red); }
+  .cat-card[data-cat="serba"] .cat-icon { background: var(--gray-100); color: var(--gray-600); }
+
+  .cat-card[data-cat="kuliner"]:hover { border-color: var(--green); }
+  .cat-card[data-cat="ahli"]:hover { border-color: var(--purple); }
+  .cat-card[data-cat="tempat"]:hover { border-color: var(--amber); }
+  .cat-card[data-cat="hunian"]:hover { border-color: var(--coral); }
+  .cat-card[data-cat="info"]:hover { border-color: var(--red); }
+
+  .cat-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 2px;
+  }
+  .cat-desc {
+    font-size: 12px;
+    color: var(--gray-400);
+    line-height: 1.4;
+  }
+
+  /* ---- Trending ---- */
+  .trending {
+    margin-bottom: 32px;
+  }
+  .trending-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .trending-fire {
+    width: 16px;
+    height: 16px;
+    color: var(--coral);
+  }
+  .trending-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .trending-item {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .trending-item:hover { border-color: var(--gray-400); }
+  .trending-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .trending-item:nth-child(1) .trending-badge { background: var(--green-light); color: var(--green); }
+  .trending-item:nth-child(2) .trending-badge { background: var(--purple-light); color: var(--purple); }
+  .trending-item:nth-child(3) .trending-badge { background: var(--amber-light); color: var(--amber); }
+  .trending-item:nth-child(4) .trending-badge { background: var(--coral-light); color: var(--coral); }
+  .trending-item:nth-child(5) .trending-badge { background: var(--red-light); color: var(--red); }
+  .trending-item:nth-child(6) .trending-badge { background: var(--green-light); color: var(--green); }
+  .trending-item:nth-child(7) .trending-badge { background: var(--amber-light); color: var(--amber); }
+  .trending-item:nth-child(8) .trending-badge { background: var(--purple-light); color: var(--purple); }
+  .trending-item:nth-child(9) .trending-badge { background: var(--coral-light); color: var(--coral); }
+  .trending-text {
+    flex: 1;
+  }
+  .trending-q {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-800);
+    line-height: 1.3;
+  }
+  .trending-meta {
+    font-size: 11px;
+    color: var(--gray-400);
+    margin-top: 2px;
+  }
+  .trending-arrow {
+    width: 16px;
+    height: 16px;
+    color: var(--gray-400);
+    flex-shrink: 0;
+  }
+
+  /* ---- Chat Modal ---- */
+  .chat-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--white);
+    z-index: 200;
+    flex-direction: column;
+  }
+  .chat-overlay.open { display: flex; }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .chat-back {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-800);
+    font-family: inherit;
+    padding: 4px 0;
+  }
+  .chat-back svg { width: 18px; height: 18px; }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .msg-bot {
+    background: var(--gray-100);
+    color: var(--gray-800);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .msg-user {
+    background: var(--green);
+    color: var(--white);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-typing {
+    align-self: flex-start;
+    background: var(--gray-100);
+    padding: 10px 18px;
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    display: none;
+  }
+  .msg-typing.show { display: flex; }
+  .typing-dots {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .typing-dots span {
+    width: 6px;
+    height: 6px;
+    background: var(--gray-400);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+
+  .chat-input-bar {
+    padding: 12px 16px;
+    border-top: 1px solid var(--gray-200);
+    background: var(--white);
+  }
+  .chat-input-bar .chat-input-wrap {
+    border-width: 1.5px;
+  }
+
+  /* ---- Footer ---- */
+  .footer {
+    text-align: center;
+    padding: 20px 16px 32px;
+    font-size: 12px;
+    color: var(--gray-400);
+  }
+  .footer a {
+    color: var(--green);
+    text-decoration: none;
+  }
+
+  /* ---- Responsive ---- */
+  @media (min-width: 640px) {
+    .hero-title { font-size: 32px; }
+    .categories { gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <span class="logo-text">NanyaDong</span><span class="logo-dot"></span>
+    </div>
+    <button class="city-btn" id="cityBtn">
+      <svg class="city-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Jabodetabek
+      <svg class="city-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="main">
+
+  <!-- Hero -->
+  <section class="hero">
+    <p class="hero-tagline">Teman lokal yang tau segalanya</p>
+    <h1 class="hero-title">Mau <span>nanya</span> apa hari ini?</h1>
+  </section>
+
+  <!-- Chat Input -->
+  <div class="chat-box">
+    <div class="chat-input-wrap">
+      <input type="text" class="chat-input" id="mainInput" placeholder="Cari tempat makan, tukang pijit, kos-kosan..." autocomplete="off">
+      <button class="chat-send" id="mainSend" aria-label="Kirim">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <p class="chat-hint">Tanya apa aja — dalam Bahasa Indonesia atau English</p>
+  </div>
+
+  <!-- Categories -->
+  <section>
+    <div class="categories">
+      <div class="cat-card" data-cat="kuliner" onclick="openChat('Rekomendasiin tempat makan atau nongkrong enak di Jabodetabek dong')">
+        <div class="cat-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        </div>
+        <div class="cat-title">Kuliner & nongkrong</div>
+        <div class="cat-desc">Cafe, warung, kopi, masakan daerah</div>
+      </div>
+      <div class="cat-card" data-cat="ahli" onclick="openChat('Cariin ahli atau spesialis yang bagus di Jabodetabek dong')">
+        <div class="cat-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
+        <div class="cat-title">Ahli & spesialis</div>
+        <div class="cat-desc">Pijit, urut, dokter, tukang</div>
+      </div>
+      <div class="cat-card" data-cat="tempat" onclick="openChat('Ada tempat menarik atau hidden gem di Jabodetabek yang belum banyak orang tau?')">
+        <div class="cat-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        </div>
+        <div class="cat-title">Tempat menarik</div>
+        <div class="cat-desc">Hidden gems, bukan wisata biasa</div>
+      </div>
+      <div class="cat-card" data-cat="hunian" onclick="openChat('Cariin info kos-kosan atau kontrakan murah di Jabodetabek dong')">
+        <div class="cat-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="cat-title">Hunian</div>
+        <div class="cat-desc">Kos, kontrakan, info harga</div>
+      </div>
+      <div class="cat-card" data-cat="info" onclick="openChat('Ada info macet, banjir, atau keributan di Jabodetabek hari ini?')">
+        <div class="cat-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="cat-title">Info sekitar</div>
+        <div class="cat-desc">Macet, banjir, demo, keributan</div>
+      </div>
+      <div class="cat-card" data-cat="serba" onclick="openChat('Butuh rekomendasi jasa atau tempat servis di Jabodetabek')">
+        <div class="cat-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </div>
+        <div class="cat-title">Serba-serbi</div>
+        <div class="cat-desc">Laundry, bengkel, notaris, dll</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trending -->
+  <section class="trending">
+    <div class="trending-header">
+      <svg class="trending-fire" viewBox="0 0 24 24" fill="currentColor"><path d="M12 23c-3.9 0-7-3.1-7-7 0-2.1.6-3.4 2-5.4.4-.6 1.5-2 2-3.6.1-.5.7-.7 1.1-.4C11.3 7.5 13 9.6 14 12c.8-1.3 1-2.8 1-4.4 0-.5.5-.8.9-.6C18.9 8.8 19 11.5 19 13c0 5.5-3.1 10-7 10z"/></svg>
+      <span class="section-label" style="margin-bottom: 0;">Lagi rame di Jabodetabek</span>
+    </div>
+    <div class="trending-list">
+      <div class="trending-item" onclick="openChat('Kopi susu gula aren terbaik di Jakarta Selatan di mana ya?')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Kopi susu gula aren terbaik di Jaksel</div>
+          <div class="trending-meta">23 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Tukang urut saraf kejepit yang bagus di Jabodetabek di mana ya?')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Tukang urut saraf kejepit yang manjur</div>
+          <div class="trending-meta">18 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Tempat nongkrong baru yang lagi hits di Kemang atau Senopati?')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Cafe baru yang lagi hits di Kemang</div>
+          <div class="trending-meta">31 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Rekomendasi kos-kosan murah di Tangerang atau Depok buat pegawai dong')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Kos murah di Tangerang & Depok buat pegawai</div>
+          <div class="trending-meta">14 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Nasi Padang paling enak di Jabodetabek yang mirip rasa asli Padang di mana?')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Nasi Padang rasa asli Padang di Jabodetabek</div>
+          <div class="trending-meta">27 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Di mana bisa dapat teh telur yang mantap di Jabodetabek?')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Teh telur mantap di Jabodetabek</div>
+          <div class="trending-meta">15 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Martabak Pecenongan yang paling enak yang mana sih? Ada rekomendasi?')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Martabak Pecenongan yang paling enak</div>
+          <div class="trending-meta">34 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Nasi goreng paling sedap di Jabodetabek di mana ya? Yang legendaris')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Nasi goreng paling sedap dan legendaris</div>
+          <div class="trending-meta">29 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="trending-item" onclick="openChat('Tempat sarapan pagi yang asyik dan enak di Jabodetabek? Buat weekend')">
+        <div class="trending-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+        </div>
+        <div class="trending-text">
+          <div class="trending-q">Sarapan pagi asyik buat weekend</div>
+          <div class="trending-meta">21 orang nanya minggu ini</div>
+        </div>
+        <svg class="trending-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+  <p>NanyaDong &mdash; Teman lokal yang tau segalanya</p>
+  <p style="margin-top: 4px;">&copy; 2026 nanyadong.com</p>
+</footer>
+
+<!-- Chat Overlay -->
+<div class="chat-overlay" id="chatOverlay">
+  <div class="chat-header">
+    <button class="chat-back" onclick="closeChat()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Kembali
+    </button>
+    <span class="logo-text" style="font-size: 16px;">NanyaDong<span class="logo-dot"></span></span>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="msg-typing" id="typingIndicator">
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+  </div>
+  <div class="chat-input-bar">
+    <div class="chat-input-wrap">
+      <input type="text" class="chat-input" id="chatInput" placeholder="Nanya lagi..." autocomplete="off">
+      <button class="chat-send" id="chatSend" aria-label="Kirim">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const chatOverlay = document.getElementById('chatOverlay');
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+  const mainInput = document.getElementById('mainInput');
+  const mainSend = document.getElementById('mainSend');
+  const typingIndicator = document.getElementById('typingIndicator');
+
+  let conversationHistory = [];
+
+  function openChat(prefill) {
+    chatOverlay.classList.add('open');
+    chatMessages.innerHTML = '';
+    conversationHistory = [];
+    document.body.style.overflow = 'hidden';
+
+    addMessage('bot', 'Halo! Gue NanyaDong, teman lokal lu di Jabodetabek. Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
+
+    if (prefill) {
+      setTimeout(() => sendMessage(prefill), 400);
+    } else {
+      chatInput.focus();
+    }
+  }
+
+  function closeChat() {
+    chatOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function addMessage(type, text) {
+    const div = document.createElement('div');
+    div.className = type === 'bot' ? 'msg msg-bot' : 'msg msg-user';
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  async function sendMessage(text) {
+    if (!text.trim()) return;
+    addMessage('user', text);
+    chatInput.value = '';
+
+    conversationHistory.push({ role: 'user', content: text });
+
+    typingIndicator.classList.add('show');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: conversationHistory,
+          city: 'Jabodetabek'
+        })
+      });
+
+      const data = await res.json();
+      const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
+
+      conversationHistory.push({ role: 'assistant', content: reply });
+      typingIndicator.classList.remove('show');
+      addMessage('bot', reply);
+
+    } catch (err) {
+      typingIndicator.classList.remove('show');
+      addMessage('bot', 'Waduh, koneksinya lagi bermasalah. Coba lagi nanti ya!');
+    }
+  }
+
+  // Main input handlers
+  mainSend.addEventListener('click', () => {
+    const val = mainInput.value.trim();
+    if (val) { openChat(val); mainInput.value = ''; }
+    else { openChat(); }
+  });
+  mainInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const val = mainInput.value.trim();
+      if (val) { openChat(val); mainInput.value = ''; }
+      else { openChat(); }
+    }
+  });
+
+  // Chat input handlers
+  chatSend.addEventListener('click', () => sendMessage(chatInput.value));
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMessage(chatInput.value);
+  });
+</script>
+
+</body>
+</html>
