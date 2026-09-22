@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nanyadong",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+
+  // Static site (index.html, later /images) lives in /public
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Plain (non-secret) settings. ANTHROPIC_API_KEY is a secret: add it in the dashboard.
+  "vars": {
+    "MODEL": "claude-sonnet-5"
+  },
+
+  // Rate limiting: create a KV namespace in the dashboard, paste its ID below,
+  // then remove the // at the start of the next four lines.
+  // "kv_namespaces": [
+  //   { "binding": "RATE_LIMIT", "id": "PASTE_KV_NAMESPACE_ID_HERE" }
+  // ],
+
+  "observability": { "enabled": true }
+}
