@@ -10,7 +10,7 @@
  *   RATE_LIMIT         KV namespace (optional but strongly recommended)
  *
  * Request:  POST { messages: [{role, content}], city: "Jabodetabek" }
- * Response: { reply: "..." }
+ * Response: { reply: "...", sources: [{ title, url }] }
  */
 
 const DEFAULT_MODEL = 'claude-sonnet-5';
@@ -71,8 +71,8 @@ export async function handleChat(request, env) {
     };
 
     // 5. Call Claude
-    const reply = await askClaude(env, messages, city, userGeo);
-    return json({ reply });
+    const { reply, sources } = await askClaude(env, messages, city, userGeo);
+    return json({ reply, sources });
 
   } catch (err) {
     console.error('chat error:', err && err.stack ? err.stack : err);
@@ -106,6 +106,7 @@ async function askClaude(env, messages, city, userGeo) {
 
   let convo = [...messages];
   let textParts = [];
+  const sourceMap = new Map(); // url -> title
 
   // Server-side tool loops can pause long turns; continue up to 2 times.
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -129,7 +130,14 @@ async function askClaude(env, messages, city, userGeo) {
     const content = Array.isArray(data.content) ? data.content : [];
 
     for (const block of content) {
-      if (block.type === 'text' && block.text) textParts.push(block.text);
+      if (block.type === 'text' && block.text) {
+        textParts.push(block.text);
+        for (const c of block.citations || []) {
+          if (c && c.url && /^https?:\/\//.test(c.url) && !sourceMap.has(c.url)) {
+            sourceMap.set(c.url, (c.title || '').trim());
+          }
+        }
+      }
     }
 
     if (data.stop_reason === 'pause_turn') {
@@ -139,8 +147,22 @@ async function askClaude(env, messages, city, userGeo) {
     break;
   }
 
-  const reply = cleanReply(textParts.join(''));
-  return reply || 'Hmm, gue belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
+  const reply = cleanReply(textParts.join('')) ||
+    'Hmm, gue belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
+
+  // Up to 4 sources, at most one per website
+  const sources = [];
+  const seenHosts = new Set();
+  for (const [url, title] of sourceMap) {
+    let host;
+    try { host = new URL(url).hostname.replace(/^www\./, ''); } catch { continue; }
+    if (seenHosts.has(host)) continue;
+    seenHosts.add(host);
+    sources.push({ url, title: title || host, site: host });
+    if (sources.length >= 4) break;
+  }
+
+  return { reply, sources };
 }
 
 function buildSystemPrompt(city, userGeo) {
