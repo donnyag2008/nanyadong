@@ -1,592 +1,712 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>SPY Signal Engine — Market Terminal</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Nanya Dong — Teman Lokal yang Tau Segalanya</title>
+<meta name="description" content="Nanya Dong — platform AI untuk menemukan tempat makan, nongkrong, ahli lokal, dan hidden gems di Indonesia. Mulai dari Jabodetabek.">
+<meta name="theme-color" content="#06513F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0b0e14;color:#d4d8e3;font-family:'Segoe UI','Inter',system-ui,sans-serif;padding:0}
-.mono{font-family:'Cascadia Code','Fira Code','Consolas',monospace}
-.container{max-width:1240px;margin:0 auto;padding:16px}
-.card{background:#141820;border:1px solid #1e2430;border-radius:8px;padding:16px;margin-bottom:12px}
-.label{font-size:10px;color:#5c6478;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
-.badge{padding:2px 10px;border-radius:4px;font-family:'Cascadia Code',monospace;font-size:12px;font-weight:600;display:inline-block}
-.grid{display:grid;gap:12px}
-.grid-4{grid-template-columns:repeat(auto-fit,minmax(100px,1fr))}
-.metric{text-align:center}.metric .val{font-size:20px;font-weight:700;font-family:'Cascadia Code',monospace}
-.metric .lbl{font-size:9px;color:#5c6478;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
-h1{font-size:22px;font-weight:700;letter-spacing:-0.5px}
-.green{color:#22c55e}.red{color:#ef4444}.amber{color:#f59e0b}.muted{color:#5c6478}.cyan{color:#06b6d4}
-.price-big{font-size:36px;font-weight:700;font-family:'Cascadia Code',monospace}
-table{width:100%;border-collapse:collapse;font-family:'Cascadia Code',monospace;font-size:11px}
-th{text-align:left;padding:6px 8px;color:#5c6478;font-size:9px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1e2430}
-td{padding:7px 8px;border-bottom:1px solid #1e243018}
-.chart-box{height:320px;position:relative}.chart-sm{height:120px;position:relative}
-.rules{font-family:'Cascadia Code',monospace;font-size:11px;color:#5c6478;line-height:1.8}
-.topbar{background:#0d1017;border-bottom:1px solid #1e2430;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-.btn{background:#1e2430;color:#d4d8e3;border:1px solid #2a3040;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'Cascadia Code',monospace;transition:all 0.2s}
-.btn:hover{background:#2a3040;border-color:#3a4050}.btn.active{background:#f59e0b22;border-color:#f59e0b;color:#f59e0b}
-.btn.primary{background:#22c55e22;border-color:#22c55e;color:#22c55e}
-input[type=text]{background:#0b0e14;border:1px solid #2a3040;border-radius:6px;padding:6px 12px;color:#d4d8e3;font-family:'Cascadia Code',monospace;font-size:12px;outline:none}
-input[type=text]:focus{border-color:#f59e0b}
-.setup-box{background:#141820;border:1px solid #1e2430;border-radius:12px;padding:32px;max-width:500px;margin:80px auto;text-align:center}
-.setup-box h2{font-size:18px;margin-bottom:8px}.setup-box p{font-size:13px;color:#5c6478;margin-bottom:20px;line-height:1.6}
-.setup-box input{width:100%;margin-bottom:12px;padding:10px 14px;font-size:14px}
-.setup-box .btn{width:100%;padding:10px;font-size:14px}
-#status{font-size:12px;color:#5c6478;margin-top:8px;min-height:18px}
-.tabs{display:flex;border-bottom:1px solid #1e2430;margin-bottom:14px}
-.tab{background:none;border:none;color:#5c6478;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
-.tab.active{color:#d4d8e3;border-bottom-color:#f59e0b}.tab:hover{color:#d4d8e3}
-.loading{display:flex;align-items:center;justify-content:center;height:400px;font-size:16px;color:#5c6478}
-.pulse{animation:pulse 1.5s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-@media(max-width:700px){.grid-4{grid-template-columns:repeat(2,1fr)}.price-big{font-size:26px}.topbar{padding:8px 12px}}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Brand */
+    --pandan: #0D8A6A;
+    --pandan-dark: #06513F;
+    --pandan-deep: #043B2E;
+    --kunyit: #F5B820;
+    --sambal: #E0402A;
+
+    /* Pillar colours: [solid, tint] */
+    --kuliner: #E0402A;   --kuliner-tint: #FDE9E5;
+    --ahli: #7B4FD6;      --ahli-tint: #EFE9FC;
+    --tempat: #D98A00;    --tempat-tint: #FFF3D6;
+    --hunian: #1F74D6;    --hunian-tint: #E4F0FD;
+    --info: #D12A62;      --info-tint: #FCE6EE;
+    --serba: #0D8A6A;     --serba-tint: #E2F4EE;
+
+    --ink: #1A1918;
+    --ink-2: #4A4946;
+    --ink-3: #8A8984;
+    --line: #E6E4DF;
+    --paper: #FFFFFF;
+    --wash: #F7F6F3;
+
+    --wrap: 1240px;
+    --radius-lg: 20px;
+    --radius: 14px;
+    --radius-sm: 10px;
+
+    /* To use a photo in the hero later: upload /images/hero.webp
+       and add class="has-photo" to <section class="hero">. */
+    --hero-photo: url('/images/hero.webp');
+  }
+
+  html { scroll-padding-top: 72px; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; }
+  :focus-visible { outline: 3px solid var(--kunyit); outline-offset: 2px; border-radius: 6px; }
+
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- Header ---------- */
+  .header {
+    background: var(--pandan-deep);
+    position: sticky; top: 0; z-index: 100;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .header-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+  }
+  .logo { display: flex; align-items: center; gap: 2px; text-decoration: none; }
+  .logo-text { font-size: 21px; font-weight: 800; color: #fff; letter-spacing: -0.6px; }
+  .logo-dot {
+    width: 7px; height: 7px; background: var(--kunyit); border-radius: 50%;
+    display: inline-block; margin-left: 2px; position: relative; top: 5px;
+  }
+  .city-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 999px; padding: 7px 14px;
+    font-size: 13px; font-weight: 600; color: #fff; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .city-btn:hover { background: rgba(255,255,255,0.18); }
+  .city-btn svg { width: 14px; height: 14px; }
+  .city-btn .pin { color: var(--kunyit); }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    background-color: var(--pandan-dark);
+    /* kawung-inspired dot pattern */
+    background-image:
+      radial-gradient(ellipse 9px 14px at 50% 0%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 9px 14px at 50% 100%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 14px 9px at 0% 50%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 14px 9px at 100% 50%, rgba(255,255,255,0.035) 98%, transparent 100%);
+    background-size: 44px 44px;
+    color: #fff;
+    overflow: hidden;
+  }
+  .hero.has-photo {
+    background-image:
+      linear-gradient(100deg, rgba(4,59,46,0.92) 0%, rgba(4,59,46,0.75) 45%, rgba(4,59,46,0.35) 100%),
+      var(--hero-photo);
+    background-size: cover;
+    background-position: center;
+  }
+  .hero::after {
+    /* sambal & kunyit stripe along the bottom edge */
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    background: linear-gradient(90deg, var(--sambal) 0 33%, var(--kunyit) 33% 66%, var(--pandan) 66% 100%);
+  }
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 44px 20px 52px;
+    align-items: center;
+  }
+  .hero-tagline {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 600; color: var(--kunyit);
+    margin-bottom: 14px;
+  }
+  .hero-tagline::before {
+    content: ""; width: 22px; height: 3px; border-radius: 2px; background: var(--kunyit);
+  }
+  .hero-title {
+    font-size: clamp(34px, 5.6vw, 64px);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    max-width: 12ch;
+    margin-bottom: 14px;
+  }
+  .hero-sub {
+    font-size: 16px; color: rgba(255,255,255,0.82);
+    max-width: 46ch; margin-bottom: 26px;
+  }
+
+  /* Chat input */
+  .chat-box { max-width: 640px; }
+  .chat-input-wrap {
+    display: flex; align-items: center;
+    background: #fff;
+    border-radius: 16px;
+    padding: 6px 6px 6px 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .chat-input-wrap:focus-within { border-color: var(--kunyit); }
+  .chat-input {
+    flex: 1; min-width: 0; border: none; outline: none;
+    font-size: 16px; font-family: inherit; color: var(--ink);
+    background: transparent; padding: 12px 0;
+  }
+  .chat-input::placeholder { color: var(--ink-3); }
+  .chat-send {
+    background: var(--sambal); border: none; border-radius: 12px;
+    height: 48px; padding: 0 20px;
+    display: flex; align-items: center; gap: 8px;
+    color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .chat-send:hover { background: #C4331F; }
+  .chat-send:active { transform: scale(0.97); }
+  .chat-send svg { width: 18px; height: 18px; }
+  .chat-hint { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 10px; }
+
+  /* Example question thread (right column) */
+  .thread {
+    display: none;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    backdrop-filter: blur(4px);
+  }
+  .thread-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 14px;
+  }
+  .thread-head strong { color: #fff; font-weight: 700; font-size: 14px; }
+  .thread-list { display: flex; flex-direction: column; gap: 10px; min-height: 330px; }
+  .q-bubble {
+    align-self: flex-start;
+    max-width: 92%;
+    text-align: left;
+    background: #fff; color: var(--ink);
+    border: none; border-radius: 16px 16px 16px 4px;
+    padding: 10px 14px 10px 12px;
+    display: flex; gap: 10px; align-items: flex-start;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    transition: transform 0.12s;
+  }
+  .q-bubble:nth-child(even) { align-self: flex-end; border-radius: 16px 16px 4px 16px; }
+  .q-bubble:hover { transform: translateY(-2px); }
+  .q-avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 14px;
+  }
+  .q-text { font-size: 14px; font-weight: 500; line-height: 1.4; }
+  .q-tag { display: block; font-size: 11px; font-weight: 700; margin-top: 3px; }
+  .q-bubble.enter { animation: pop 0.45s cubic-bezier(.2,.9,.3,1.3) both; }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Sections ---------- */
+  .section { padding: 44px 0 8px; }
+  .section-title {
+    font-size: clamp(22px, 2.6vw, 30px); font-weight: 800;
+    letter-spacing: -0.02em; line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .section-sub { font-size: 15px; color: var(--ink-2); margin-bottom: 22px; }
+
+  /* Categories */
+  .categories {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .cat-card {
+    --c: var(--serba); --t: var(--serba-tint);
+    background: var(--t);
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    text-align: left; cursor: pointer;
+    transition: border-color 0.15s, transform 0.12s;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .cat-card:hover { border-color: var(--c); transform: translateY(-2px); }
+  .cat-card:active { transform: scale(0.98); }
+  .cat-card[data-cat="kuliner"] { --c: var(--kuliner); --t: var(--kuliner-tint); }
+  .cat-card[data-cat="ahli"]    { --c: var(--ahli);    --t: var(--ahli-tint); }
+  .cat-card[data-cat="tempat"]  { --c: var(--tempat);  --t: var(--tempat-tint); }
+  .cat-card[data-cat="hunian"]  { --c: var(--hunian);  --t: var(--hunian-tint); }
+  .cat-card[data-cat="info"]    { --c: var(--info);    --t: var(--info-tint); }
+  .cat-card[data-cat="serba"]   { --c: var(--serba);   --t: var(--serba-tint); }
+  .cat-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--c); color: #fff;
+    display: grid; place-items: center; font-size: 22px;
+    margin-bottom: 10px;
+  }
+  .cat-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .cat-desc { font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+
+  /* Question cards */
+  .q-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .q-card {
+    --c: var(--serba); --t: var(--serba-tint);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--c);
+    border-radius: var(--radius);
+    padding: 16px 16px 16px 14px;
+    display: flex; align-items: center; gap: 14px;
+    text-align: left; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .q-card:hover { border-color: var(--c); box-shadow: 0 6px 18px rgba(26,25,24,0.08); }
+  .q-card[data-cat="kuliner"] { --c: var(--kuliner); --t: var(--kuliner-tint); }
+  .q-card[data-cat="ahli"]    { --c: var(--ahli);    --t: var(--ahli-tint); }
+  .q-card[data-cat="tempat"]  { --c: var(--tempat);  --t: var(--tempat-tint); }
+  .q-card[data-cat="hunian"]  { --c: var(--hunian);  --t: var(--hunian-tint); }
+  .q-badge {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--t); display: grid; place-items: center;
+    font-size: 19px; flex-shrink: 0;
+  }
+  .q-body { flex: 1; min-width: 0; }
+  .q-title { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+  .q-meta { font-size: 12px; font-weight: 700; color: var(--c); margin-top: 3px; }
+  .q-arrow { width: 18px; height: 18px; color: var(--ink-3); flex-shrink: 0; }
+
+  /* ---------- Footer ---------- */
+  .footer {
+    margin-top: 56px;
+    background: var(--wash);
+    border-top: 1px solid var(--line);
+    padding: 28px 0 calc(32px + env(safe-area-inset-bottom, 0px));
+    font-size: 13px; color: var(--ink-3);
+  }
+  .footer-inner { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+  .footer strong { color: var(--pandan); font-weight: 800; }
+
+  /* ---------- Chat overlay ---------- */
+  .chat-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--wash); z-index: 200; flex-direction: column;
+  }
+  .chat-overlay.open { display: flex; }
+  .chat-header {
+    background: var(--pandan-deep); color: #fff;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .chat-header-inner {
+    max-width: 820px; margin: 0 auto; height: 56px; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chat-back {
+    background: none; border: none; cursor: pointer; color: #fff;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 14px; font-weight: 600; padding: 6px 0;
+  }
+  .chat-back svg { width: 18px; height: 18px; }
+  .chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 20px 16px;
+  }
+  .chat-column {
+    max-width: 820px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg {
+    max-width: 85%; padding: 11px 15px; border-radius: 18px;
+    font-size: 15px; line-height: 1.55; white-space: pre-wrap;
+  }
+  .msg-bot {
+    background: #fff; color: var(--ink); align-self: flex-start;
+    border-bottom-left-radius: 4px; border: 1px solid var(--line);
+  }
+  .msg-user {
+    background: var(--pandan); color: #fff; align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-typing {
+    align-self: flex-start; background: #fff; border: 1px solid var(--line);
+    padding: 12px 18px; border-radius: 18px; border-bottom-left-radius: 4px;
+    display: none;
+  }
+  .msg-typing.show { display: flex; }
+  .typing-dots { display: flex; gap: 4px; align-items: center; }
+  .typing-dots span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3);
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.15s; background: var(--kunyit); }
+  .typing-dots span:nth-child(3) { animation-delay: 0.3s; background: var(--sambal); }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+  .chat-input-bar {
+    background: #fff; border-top: 1px solid var(--line);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .chat-input-bar .chat-input-wrap {
+    max-width: 820px; margin: 0 auto;
+    box-shadow: none; border: 2px solid var(--line);
+  }
+  .chat-input-bar .chat-input-wrap:focus-within { border-color: var(--pandan); }
+  .chat-input-bar .chat-send { padding: 0 14px; }
+
+  /* ---------- Responsive ---------- */
+  @media (min-width: 640px) {
+    .categories { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .q-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1000px) {
+    .hero-inner {
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 56px;
+      padding: 72px 20px 80px;
+    }
+    .thread { display: block; }
+    .categories { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .q-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .section { padding-top: 56px; }
+  }
+  @media (max-width: 480px) {
+    .chat-send .send-label { display: none; }
+    .chat-send { padding: 0 14px; }
+    .hero-inner { padding: 32px 20px 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
 
-<!-- ACCESS GATE -->
-<div id="accessGate">
-<div class="setup-box">
-  <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;box-shadow:0 0 10px #f59e0b;display:inline-block;margin-bottom:12px"></div>
-  <h2>SPY Signal Engine</h2>
-  <p>Private terminal. Enter your access code.</p>
-  <input type="password" id="accessCode" placeholder="Access code" onkeydown="if(event.key==='Enter')checkAccess()">
-  <button class="btn primary" onclick="checkAccess()" style="width:100%;padding:10px;font-size:14px">Enter</button>
-  <div id="accessStatus" style="font-size:12px;margin-top:8px"></div>
-</div>
-</div>
+<!-- Header -->
+<header class="header">
+  <div class="wrap header-inner">
+    <a class="logo" href="/" aria-label="NanyaDong beranda">
+      <span class="logo-text">NanyaDong</span><span class="logo-dot"></span>
+    </a>
+    <button class="city-btn" id="cityBtn" type="button">
+      <svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Jabodetabek
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+</header>
 
-<!-- SETUP SCREEN -->
-<div id="setupScreen" style="display:none">
-<div class="setup-box">
-  <div style="width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e;display:inline-block;margin-bottom:12px"></div>
-  <h2>SPY Signal Engine</h2>
-  <p>Get a free API key from <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="color:#f59e0b">alphavantage.co</a> (takes 30 seconds), paste it below, and you're live.</p>
-  <input type="text" id="apiKeyInput" placeholder="Paste your Alpha Vantage API key">
-  <button class="btn primary" onclick="startEngine()" style="width:100%;padding:10px;font-size:14px">Launch Terminal</button>
-  <div id="setupStatus" style="font-size:12px;color:#5c6478;margin-top:10px"></div>
-  <div style="margin-top:20px;padding-top:16px;border-top:1px solid #1e2430">
-    <p style="font-size:11px;color:#5c6478;margin-bottom:8px">Or load from Python script output:</p>
-    <button class="btn" onclick="document.getElementById('jsonUpload').click()" style="width:100%">Load spy_options.json</button>
-    <input type="file" id="jsonUpload" accept=".json" style="display:none" onchange="loadJsonFile(event)">
+<main>
+
+  <!-- Hero (add class "has-photo" once /images/hero.webp exists) -->
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div>
+        <p class="hero-tagline">Teman lokal yang tau segalanya</p>
+        <h1 class="hero-title">Mau nanya apa hari ini?</h1>
+        <p class="hero-sub">Tempat makan, tukang urut, hidden gems, kos-kosan — tanya kayak ke temen yang udah lama tinggal di Jabodetabek.</p>
+
+        <div class="chat-box">
+          <div class="chat-input-wrap">
+            <input type="text" class="chat-input" id="mainInput" placeholder="Cari tempat makan, tukang pijit, kos-kosan..." autocomplete="off" aria-label="Tulis pertanyaan">
+            <button class="chat-send" id="mainSend" type="button" aria-label="Tanya">
+              <span class="send-label">Tanya</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <p class="chat-hint">Bahasa Indonesia atau English, dua-duanya bisa.</p>
+        </div>
+      </div>
+
+      <aside class="thread" aria-label="Contoh pertanyaan">
+        <div class="thread-head">
+          <strong>Contoh pertanyaan</strong>
+          <span>Klik buat nanya</span>
+        </div>
+        <div class="thread-list" id="threadList"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  <section class="section">
+    <div class="wrap">
+      <h2 class="section-title">Mulai dari sini</h2>
+      <p class="section-sub">Pilih topik, atau langsung tanya di atas.</p>
+      <div class="categories">
+        <button class="cat-card" data-cat="kuliner" type="button" onclick="openChat('Rekomendasiin tempat makan atau nongkrong enak di Jabodetabek dong')">
+          <span class="cat-icon" aria-hidden="true">☕</span>
+          <span class="cat-title">Kuliner & nongkrong</span>
+          <span class="cat-desc">Cafe, warung, kopi, masakan daerah</span>
+        </button>
+        <button class="cat-card" data-cat="ahli" type="button" onclick="openChat('Cariin ahli atau spesialis yang bagus di Jabodetabek dong')">
+          <span class="cat-icon" aria-hidden="true">💆</span>
+          <span class="cat-title">Ahli & spesialis</span>
+          <span class="cat-desc">Pijit, urut, dokter, tukang</span>
+        </button>
+        <button class="cat-card" data-cat="tempat" type="button" onclick="openChat('Ada tempat menarik atau hidden gem di Jabodetabek yang belum banyak orang tau?')">
+          <span class="cat-icon" aria-hidden="true">🗺️</span>
+          <span class="cat-title">Tempat menarik</span>
+          <span class="cat-desc">Hidden gems, bukan wisata biasa</span>
+        </button>
+        <button class="cat-card" data-cat="hunian" type="button" onclick="openChat('Cariin info kos-kosan atau kontrakan murah di Jabodetabek dong')">
+          <span class="cat-icon" aria-hidden="true">🏠</span>
+          <span class="cat-title">Hunian</span>
+          <span class="cat-desc">Kos, kontrakan, info harga</span>
+        </button>
+        <button class="cat-card" data-cat="info" type="button" onclick="openChat('Ada info macet, banjir, atau keributan di Jabodetabek hari ini?')">
+          <span class="cat-icon" aria-hidden="true">🚦</span>
+          <span class="cat-title">Info sekitar</span>
+          <span class="cat-desc">Macet, banjir, demo, keributan</span>
+        </button>
+        <button class="cat-card" data-cat="serba" type="button" onclick="openChat('Butuh rekomendasi jasa atau tempat servis di Jabodetabek')">
+          <span class="cat-icon" aria-hidden="true">🔧</span>
+          <span class="cat-title">Serba-serbi</span>
+          <span class="cat-desc">Laundry, bengkel, notaris, dll</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Question cards -->
+  <section class="section">
+    <div class="wrap">
+      <h2 class="section-title">Coba tanya ini</h2>
+      <p class="section-sub">Pertanyaan yang sering muncul di grup WA — sekarang ada yang jawab.</p>
+      <div class="q-grid" id="qGrid"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <p><strong>NanyaDong</strong> — Teman lokal yang tau segalanya</p>
+    <p>&copy; 2026 nanyadong.com</p>
+  </div>
+</footer>
+
+<!-- Chat Overlay -->
+<div class="chat-overlay" id="chatOverlay" role="dialog" aria-modal="true" aria-label="Chat NanyaDong">
+  <div class="chat-header">
+    <div class="chat-header-inner">
+      <button class="chat-back" type="button" onclick="closeChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Kembali
+      </button>
+      <span class="logo"><span class="logo-text" style="font-size:17px">NanyaDong</span><span class="logo-dot"></span></span>
+    </div>
+  </div>
+  <div class="chat-messages" id="chatScroll">
+    <div class="chat-column" id="chatMessages"></div>
+    <div class="chat-column">
+      <div class="msg-typing" id="typingIndicator">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="chat-input-bar">
+    <div class="chat-input-wrap">
+      <input type="text" class="chat-input" id="chatInput" placeholder="Nanya lagi..." autocomplete="off" aria-label="Tulis pertanyaan">
+      <button class="chat-send" id="chatSend" type="button" aria-label="Kirim">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
   </div>
 </div>
-</div>
-
-<!-- MAIN DASHBOARD (hidden until data loads) -->
-<div id="dashboard" style="display:none">
-
-<div class="topbar">
-  <div style="display:flex;align-items:center;gap:10px">
-    <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e" class="pulse"></div>
-    <h1>SPY Signal Engine</h1>
-    <span class="mono" style="font-size:10px;color:#5c6478;background:#262a36;padding:2px 6px;border-radius:3px">v4</span>
-  </div>
-  <div style="display:flex;gap:8px;align-items:center">
-    <span id="lastUpdate" class="mono" style="font-size:10px;color:#5c6478"></span>
-    <button class="btn" onclick="refreshData()">↻ Refresh</button>
-  </div>
-</div>
-
-<div class="container">
-
-<!-- Signal strip -->
-<div class="card" id="signalCard"></div>
-
-<!-- Indicators -->
-<div class="card" id="indicatorCard"></div>
-
-<!-- Option Quote -->
-<div class="card" id="optionCard"></div>
-
-<!-- Tabs -->
-<div class="tabs">
-  <button class="tab active" onclick="switchTab('charts',this)">Charts</button>
-  <button class="tab" onclick="switchTab('performance',this)">Performance</button>
-  <button class="tab" onclick="switchTab('trades',this)">Trade Log</button>
-</div>
-
-<!-- Tab content -->
-<div id="chartsTab">
-  <div class="card"><div class="label">SPY Price · EMA Overlay · Buy/Sell Signals</div><div class="chart-box"><canvas id="priceChart"></canvas></div></div>
-  <div class="card"><div class="label">RSI (14)</div><div class="chart-sm"><canvas id="rsiChart"></canvas></div></div>
-  <div class="card"><div class="label">Volume Ratio (vs 20-day avg)</div><div class="chart-sm"><canvas id="volChart"></canvas></div></div>
-</div>
-<div id="performanceTab" style="display:none"></div>
-<div id="tradesTab" style="display:none"></div>
-
-<!-- Rules -->
-<div class="card rules">
-  <div class="label">Strategy Rules v4</div>
-  <div><span class="green">BUY</span> → EMA9 crosses above EMA21 + Price > EMA200 + RSI < 65 + Volume > 20d avg</div>
-  <div><span class="red">SELL</span> → EMA9 crosses below EMA21 OR RSI > 72</div>
-  <div><span class="green">TP</span> → Option premium gains 100% (doubles) → exit</div>
-  <div><span class="red">SL</span> → Option premium loses 50% → exit</div>
-  <div>Instrument: 1× ATM Call, 17 DTE at entry</div>
-</div>
-
-</div><!-- /container -->
-</div><!-- /dashboard -->
 
 <script>
-// ═══════════════════════════════════════════════════
-//  CONFIGURATION
-// ═══════════════════════════════════════════════════
-const CONFIG = { slPct: 50, tpPct: 100, dte: 17, rfr: 0.045, rsiEntry: 65, rsiExit: 72 };
-
-// ═══════════════════════════════════════════════════
-//  BLACK-SCHOLES
-// ═══════════════════════════════════════════════════
-function normCdf(x) {
-  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
-  const sign = x < 0 ? -1 : 1; x = Math.abs(x) / Math.sqrt(2);
-  const t = 1 / (1 + p * x);
-  const y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
-  return 0.5 * (1 + sign * y);
-}
-function normPdf(x) { return Math.exp(-0.5*x*x) / Math.sqrt(2*Math.PI); }
-
-function bsPrice(S,K,T,r,sigma) {
-  if (T<=0) return Math.max(S-K,0);
-  const d1 = (Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
-  const d2 = d1 - sigma*Math.sqrt(T);
-  return S*normCdf(d1) - K*Math.exp(-r*T)*normCdf(d2);
-}
-function bsGreeks(S,K,T,r,sigma) {
-  if (T<=0) return {delta:S>K?1:0,gamma:0,theta:0,price:Math.max(S-K,0)};
-  const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
-  const d2=d1-sigma*Math.sqrt(T);
-  return {
-    delta: Math.round(normCdf(d1)*10000)/10000,
-    gamma: Math.round(normPdf(d1)/(S*sigma*Math.sqrt(T))*1000000)/1000000,
-    theta: Math.round(-(S*normPdf(d1)*sigma/(2*Math.sqrt(T))+r*K*Math.exp(-r*T)*normCdf(d2))/365*10000)/10000,
-    price: Math.round(bsPrice(S,K,T,r,sigma)*100)/100
+  /* ---------- Content ---------- */
+  const CATS = {
+    kuliner: { label: 'Kuliner & nongkrong', emoji: '☕', color: 'var(--kuliner)', tint: 'var(--kuliner-tint)' },
+    ahli:    { label: 'Ahli & spesialis',    emoji: '💆', color: 'var(--ahli)',    tint: 'var(--ahli-tint)' },
+    tempat:  { label: 'Tempat menarik',      emoji: '🗺️', color: 'var(--tempat)',  tint: 'var(--tempat-tint)' },
+    hunian:  { label: 'Hunian',              emoji: '🏠', color: 'var(--hunian)',  tint: 'var(--hunian-tint)' },
+    info:    { label: 'Info sekitar',        emoji: '🚦', color: 'var(--info)',    tint: 'var(--info-tint)' },
+    serba:   { label: 'Serba-serbi',         emoji: '🔧', color: 'var(--serba)',   tint: 'var(--serba-tint)' }
   };
-}
 
-// ═══════════════════════════════════════════════════
-//  INDICATORS
-// ═══════════════════════════════════════════════════
-function calcEma(arr, span) {
-  const k = 2/(span+1); const res = [arr[0]];
-  for (let i=1;i<arr.length;i++) res.push(arr[i]*k+res[i-1]*(1-k));
-  return res;
-}
-function calcRsi(prices, period=14) {
-  const rsi = new Array(prices.length).fill(null);
-  for (let i=period; i<prices.length; i++) {
-    let g=0,l=0;
-    for (let j=i-period+1;j<=i;j++) {
-      const d=prices[j]-prices[j-1]; d>0?g+=d:l-=d;
-    }
-    const ag=g/period, al=l/period;
-    rsi[i] = al===0 ? 100 : Math.round((100-100/(1+ag/al))*10)/10;
+  // Cards below the categories (same questions as before)
+  const QUESTIONS = [
+    { cat: 'kuliner', title: 'Kopi susu gula aren terbaik di Jaksel', ask: 'Kopi susu gula aren terbaik di Jakarta Selatan di mana ya?' },
+    { cat: 'ahli',    title: 'Tukang urut saraf kejepit yang manjur', ask: 'Tukang urut saraf kejepit yang bagus di Jabodetabek di mana ya?' },
+    { cat: 'tempat',  title: 'Cafe baru yang lagi hits di Kemang', ask: 'Tempat nongkrong baru yang lagi hits di Kemang atau Senopati?' },
+    { cat: 'hunian',  title: 'Kos murah di Tangerang & Depok buat pegawai', ask: 'Rekomendasi kos-kosan murah di Tangerang atau Depok buat pegawai dong' },
+    { cat: 'kuliner', title: 'Nasi Padang rasa asli Padang di Jabodetabek', ask: 'Nasi Padang paling enak di Jabodetabek yang mirip rasa asli Padang di mana?' },
+    { cat: 'kuliner', title: 'Teh telur mantap di Jabodetabek', ask: 'Di mana bisa dapat teh telur yang mantap di Jabodetabek?' },
+    { cat: 'kuliner', title: 'Martabak Pecenongan yang paling enak', ask: 'Martabak Pecenongan yang paling enak yang mana sih? Ada rekomendasi?' },
+    { cat: 'kuliner', title: 'Nasi goreng paling sedap dan legendaris', ask: 'Nasi goreng paling sedap di Jabodetabek di mana ya? Yang legendaris' },
+    { cat: 'tempat',  title: 'Sarapan pagi asyik buat weekend', ask: 'Tempat sarapan pagi yang asyik dan enak di Jabodetabek? Buat weekend' }
+  ];
+
+  // Example questions cycling in the hero (desktop)
+  const THREAD = [
+    { cat: 'kuliner', q: 'Kopi susu gula aren paling enak di Jaksel di mana?' },
+    { cat: 'ahli',    q: 'Tukang urut saraf kejepit deket Cibubur ada gak?' },
+    { cat: 'hunian',  q: 'Kos buat pegawai di BSD kisaran berapa sebulan?' },
+    { cat: 'info',    q: 'Sudirman hari ini macet parah gak?' },
+    { cat: 'serba',   q: 'Bengkel motor yang jujur di Depok?' },
+    { cat: 'tempat',  q: 'Hidden gem buat weekend di Bogor?' },
+    { cat: 'kuliner', q: 'Nasi Padang rasa asli di Bekasi yang mana?' },
+    { cat: 'ahli',    q: 'Tukang jahit kebaya yang rapi di Jaktim?' }
+  ];
+
+  const PLACEHOLDERS = [
+    'Cari tempat makan, tukang pijit, kos-kosan...',
+    'Martabak paling enak di Pecenongan?',
+    'Tukang urut deket BSD ada?',
+    'Cafe buat kerja yang tenang di Jaksel?',
+    'Laundry kiloan murah di Depok?'
+  ];
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- Render question cards ---------- */
+  const qGrid = document.getElementById('qGrid');
+  QUESTIONS.forEach(item => {
+    const c = CATS[item.cat];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'q-card';
+    btn.dataset.cat = item.cat;
+    btn.innerHTML = `
+      <span class="q-badge" aria-hidden="true">${c.emoji}</span>
+      <span class="q-body">
+        <span class="q-title" style="display:block"></span>
+        <span class="q-meta" style="display:block">${c.label}</span>
+      </span>
+      <svg class="q-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`;
+    btn.querySelector('.q-title').textContent = item.title;
+    btn.addEventListener('click', () => openChat(item.ask));
+    qGrid.appendChild(btn);
+  });
+
+  /* ---------- Hero thread ---------- */
+  const threadList = document.getElementById('threadList');
+  const MAX_BUBBLES = 5;
+  let threadIdx = 0;
+
+  function makeBubble(item, animate) {
+    const c = CATS[item.cat];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'q-bubble' + (animate ? ' enter' : '');
+    b.innerHTML = `
+      <span class="q-avatar" style="background:${c.tint}" aria-hidden="true">${c.emoji}</span>
+      <span><span class="q-text"></span><span class="q-tag" style="color:${c.color}">${c.label}</span></span>`;
+    b.querySelector('.q-text').textContent = item.q;
+    b.addEventListener('click', () => openChat(item.q));
+    return b;
   }
-  return rsi;
-}
-function calcHistVol(prices, w=20) {
-  const hv = new Array(prices.length).fill(null);
-  for (let i=w; i<prices.length; i++) {
-    let sum=0;
-    for (let j=i-w+1;j<=i;j++) { const lr=Math.log(prices[j]/prices[j-1]); sum+=lr*lr; }
-    hv[i] = Math.sqrt(sum/w)*Math.sqrt(252);
+
+  function addThreadBubble(animate) {
+    const item = THREAD[threadIdx % THREAD.length];
+    threadIdx++;
+    threadList.appendChild(makeBubble(item, animate));
+    while (threadList.children.length > MAX_BUBBLES) threadList.removeChild(threadList.firstElementChild);
   }
-  return hv;
-}
-function calcVolRatio(volumes, w=20) {
-  const vr = new Array(volumes.length).fill(null);
-  for (let i=w-1; i<volumes.length; i++) {
-    let sum=0; for (let j=i-w+1;j<=i;j++) sum+=volumes[j];
-    vr[i] = Math.round(volumes[i]/(sum/w)*100)/100;
+
+  for (let i = 0; i < MAX_BUBBLES; i++) addThreadBubble(false);
+  if (!reduceMotion) setInterval(() => { if (!document.hidden) addThreadBubble(true); }, 3200);
+
+  /* ---------- Rotating placeholder ---------- */
+  const mainInput = document.getElementById('mainInput');
+  let phIdx = 0;
+  if (!reduceMotion) {
+    setInterval(() => {
+      if (document.activeElement === mainInput || mainInput.value) return;
+      phIdx = (phIdx + 1) % PLACEHOLDERS.length;
+      mainInput.placeholder = PLACEHOLDERS[phIdx];
+    }, 2800);
   }
-  return vr;
-}
 
-// ═══════════════════════════════════════════════════
-//  SIGNAL GENERATION
-// ═══════════════════════════════════════════════════
-function generateSignals(data) {
-  const prices = data.map(d=>d.close);
-  const highs = data.map(d=>d.high);
-  const lows = data.map(d=>d.low);
-  const volumes = data.map(d=>d.volume);
-  const ema9=calcEma(prices,9), ema21=calcEma(prices,21), ema200=calcEma(prices,200);
-  const rsi=calcRsi(prices), hv=calcHistVol(prices), vr=calcVolRatio(volumes);
+  /* ---------- Chat ---------- */
+  const chatOverlay = document.getElementById('chatOverlay');
+  const chatMessages = document.getElementById('chatMessages');
+  const chatScroll = document.getElementById('chatScroll');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+  const mainSend = document.getElementById('mainSend');
+  const typingIndicator = document.getElementById('typingIndicator');
 
-  for (let i=0;i<data.length;i++) {
-    data[i].ema9=Math.round(ema9[i]*100)/100;
-    data[i].ema21=Math.round(ema21[i]*100)/100;
-    data[i].ema200=Math.round(ema200[i]*100)/100;
-    data[i].rsi=rsi[i]; data[i].hv=hv[i]; data[i].volRatio=vr[i];
-    const abv = ema9[i]>ema21[i];
-    const prevAbv = i>0 ? ema9[i-1]>ema21[i-1] : true;
-    const crossUp = abv && !prevAbv;
-    const crossDown = !abv && prevAbv;
-    let sig = null;
-    if (crossUp && prices[i]>ema200[i] && (rsi[i]===null||rsi[i]<CONFIG.rsiEntry) && (vr[i]===null||vr[i]>1.0))
-      sig = "BUY";
-    else if (crossDown || (rsi[i]!==null && rsi[i]>CONFIG.rsiExit))
-      sig = "SELL";
-    data[i].signal = sig;
+  let conversationHistory = [];
+
+  function scrollToBottom() { chatScroll.scrollTop = chatScroll.scrollHeight; }
+
+  function openChat(prefill) {
+    chatOverlay.classList.add('open');
+    chatMessages.innerHTML = '';
+    conversationHistory = [];
+    document.body.style.overflow = 'hidden';
+
+    addMessage('bot', 'Halo! Gue NanyaDong, teman lokal lu di Jabodetabek. Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
+
+    if (prefill) setTimeout(() => sendMessage(prefill), 400);
+    else chatInput.focus();
   }
-  return data;
-}
 
-// ═══════════════════════════════════════════════════
-//  OPTIONS BACKTESTER (Premium SL/TP)
-// ═══════════════════════════════════════════════════
-function backtestOptions(data) {
-  const trades=[];let pos=null,hold=0;
-  for (const bar of data) {
-    if (pos) {
-      hold++;
-      let daysLeft = Math.max(pos.dteLeft-1,0); pos.dteLeft=daysLeft;
-      const T=daysLeft/365, iv=pos.iv, K=pos.strike, entryOpt=pos.entryOpt;
-      const optLow=bsPrice(bar.low,K,T,CONFIG.rfr,iv);
-      const optHigh=bsPrice(bar.high,K,T,CONFIG.rfr,iv);
-      const optClose=bsPrice(bar.close,K,T,CONFIG.rfr,iv);
-      const slLev=entryOpt*(1-CONFIG.slPct/100), tpLev=entryOpt*(1+CONFIG.tpPct/100);
-      let exitOpt=null,reason=null;
-      if (optLow<=slLev){exitOpt=slLev;reason="STOP-LOSS";}
-      else if(optHigh>=tpLev){exitOpt=tpLev;reason="TAKE-PROFIT";}
-      else if(bar.signal==="SELL"){exitOpt=optClose;reason="SIGNAL";}
-      else if(daysLeft<=0){exitOpt=Math.max(bar.close-K,0);reason="EXPIRY";}
-      if (exitOpt!==null) {
-        const pnl=Math.round((exitOpt-entryOpt)*10000)/100;
-        const pnlPct=entryOpt>0?Math.round((exitOpt/entryOpt-1)*1000)/10:0;
-        trades.push({entryDate:pos.entryDate,exitDate:bar.date,daysHeld:hold,
-          spyEntry:pos.entryPrice,spyExit:Math.round(bar.close*100)/100,
-          spyMove:Math.round((bar.close-pos.entryPrice)*100)/100,
-          strike:K,dteEntry:pos.dteEntry,dteExit:daysLeft,ivPct:Math.round(iv*1000)/10,
-          optEntry:Math.round(entryOpt*100)/100,optExit:Math.round(exitOpt*100)/100,
-          optSl:Math.round(slLev*100)/100,optTp:Math.round(tpLev*100)/100,
-          pnl,pnlPct,reason,result:pnl>0?"WIN":"LOSS"});
-        pos=null;hold=0;
-      }
-    }
-    if (bar.signal==="BUY"&&!pos) {
-      const K=Math.round(bar.close);
-      let iv=bar.hv||0.16; if(iv<0.05)iv=0.16;
-      const eOpt=bsPrice(bar.close,K,CONFIG.dte/365,CONFIG.rfr,iv);
-      const eG=bsGreeks(bar.close,K,CONFIG.dte/365,CONFIG.rfr,iv);
-      pos={entryDate:bar.date,entryPrice:Math.round(bar.close*100)/100,strike:K,iv,
-           dteEntry:CONFIG.dte,dteLeft:CONFIG.dte,entryOpt:eOpt,greeks:eG};
-      hold=0;
-    }
+  function closeChat() {
+    chatOverlay.classList.remove('open');
+    document.body.style.overflow = '';
   }
-  if (!trades.length) return {trades:[],stats:null};
-  const wins=trades.filter(t=>t.result==="WIN"),losses=trades.filter(t=>t.result==="LOSS");
-  const tp=trades.reduce((s,t)=>s+t.pnl,0);
-  const aw=wins.length?wins.reduce((s,t)=>s+t.pnl,0)/wins.length:0;
-  const al=losses.length?losses.reduce((s,t)=>s+t.pnl,0)/losses.length:0;
-  const ws=wins.reduce((s,t)=>s+t.pnl,0)||0, ls=Math.abs(losses.reduce((s,t)=>s+t.pnl,0))||0;
-  return {trades, stats:{
-    total:trades.length,wins:wins.length,losses:losses.length,
-    winRate:Math.round(wins.length/trades.length*1000)/10,
-    totalPnl:Math.round(tp*100)/100,avgWin:Math.round(aw*100)/100,avgLoss:Math.round(al*100)/100,
-    pf:ls?Math.round(ws/ls*100)/100:Infinity,
-    rr:al?Math.round(Math.abs(aw/al)*100)/100:Infinity,
-    bestWin:wins.length?Math.round(Math.max(...wins.map(t=>t.pnl))*100)/100:0,
-    worstLoss:losses.length?Math.round(Math.min(...losses.map(t=>t.pnl))*100)/100:0,
-    avgCost:Math.round(trades.reduce((s,t)=>s+t.optEntry,0)/trades.length*10000)/100,
-    avgHold:Math.round(trades.reduce((s,t)=>s+t.daysHeld,0)/trades.length*10)/10,
-    tpEx:trades.filter(t=>t.reason==="TAKE-PROFIT").length,
-    slEx:trades.filter(t=>t.reason==="STOP-LOSS").length,
-    sigEx:trades.filter(t=>t.reason==="SIGNAL").length,
-    expEx:trades.filter(t=>t.reason==="EXPIRY").length
-  }};
-}
 
-// ═══════════════════════════════════════════════════
-//  DATA FETCHING (Alpha Vantage)
-// ═══════════════════════════════════════════════════
-let API_KEY = localStorage.getItem('av_api_key') || '';
-let CHART_DATA = [];
-let BACKTEST = {};
-let priceChartObj=null, rsiChartObj=null, volChartObj=null;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && chatOverlay.classList.contains('open')) closeChat();
+  });
 
-async function fetchSPYData(apiKey) {
-  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=SPY&outputsize=full&apikey=${apiKey}`;
-  const resp = await fetch(url);
-  const json = await resp.json();
-  if (json["Error Message"]) throw new Error("Invalid API key or symbol");
-  if (json["Note"]) throw new Error("API rate limit — wait 60 seconds and try again");
-  if (json["Information"]) throw new Error("API rate limit — wait 60 seconds and try again");
-  const ts = json["Time Series (Daily)"];
-  if (!ts) throw new Error("No data returned");
-  const entries = Object.entries(ts).sort((a,b)=>a[0].localeCompare(b[0]));
-  // Take last ~500 trading days
-  const recent = entries.slice(-501);
-  return recent.map(([date,v])=>({
-    date, open:+v["1. open"], high:+v["2. high"], low:+v["3. low"],
-    close:+v["4. close"], volume:+v["5. volume"]
-  }));
-}
-
-// ═══════════════════════════════════════════════════
-//  RENDERING
-// ═══════════════════════════════════════════════════
-function badgeHtml(type, text) {
-  const styles = {
-    BUY:{bg:"#052e16",c:"#22c55e"},SELL:{bg:"#450a0a",c:"#ef4444"},HOLD:{bg:"#262a36",c:"#94a3b8"},
-    BULLISH:{bg:"#052e16",c:"#22c55e"},BEARISH:{bg:"#450a0a",c:"#ef4444"},
-    OVERBOUGHT:{bg:"#450a0a",c:"#ef4444"},OVERSOLD:{bg:"#052e16",c:"#22c55e"},NEUTRAL:{bg:"#262a36",c:"#94a3b8"},
-    "ABOVE AVG":{bg:"#052e16",c:"#22c55e"},"BELOW AVG":{bg:"#262a36",c:"#94a3b8"},
-    "TAKE-PROFIT":{bg:"#052e16",c:"#22c55e"},"STOP-LOSS":{bg:"#450a0a",c:"#ef4444"},
-    SIGNAL:{bg:"#422006",c:"#f59e0b"},EXPIRY:{bg:"#1e293b",c:"#94a3b8"},
-    WIN:{bg:"#052e16",c:"#22c55e"},LOSS:{bg:"#450a0a",c:"#ef4444"}
-  };
-  const s=styles[type]||styles.HOLD;
-  return `<span class="badge" style="background:${s.bg};color:${s.c}">${text||type}</span>`;
-}
-
-function renderDashboard(data) {
-  const last = data[data.length-1];
-  const sig = [...data].reverse().find(d=>d.signal)?.signal || "HOLD";
-  const trend = last.close>last.ema200?"BULLISH":"BEARISH";
-  const mom = last.ema9>last.ema21?"BULLISH":"BEARISH";
-  const rsiZ = last.rsi>72?"OVERBOUGHT":last.rsi<30?"OVERSOLD":"NEUTRAL";
-  const volS = last.volRatio>1?"ABOVE AVG":"BELOW AVG";
-
-  // Option quote
-  const K=Math.round(last.close);
-  let iv=last.hv||0.16; if(iv<0.05)iv=0.16;
-  const g=bsGreeks(last.close,K,CONFIG.dte/365,CONFIG.rfr,iv);
-  const slLev=Math.round(g.price*(1-CONFIG.slPct/100)*100)/100;
-  const tpLev=Math.round(g.price*(1+CONFIG.tpPct/100)*100)/100;
-
-  // Signal card
-  document.getElementById('signalCard').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-      <div><div class="label">Latest Signal · ${last.date}</div>
-      <div style="display:flex;align-items:baseline;gap:12px"><span class="price-big">$${last.close}</span>${badgeHtml(sig)}</div></div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap">
-        <div><div style="font-size:9px;color:#5c6478">TREND</div>${badgeHtml(trend)}</div>
-        <div><div style="font-size:9px;color:#5c6478">MOMENTUM</div>${badgeHtml(mom)}</div>
-        <div><div style="font-size:9px;color:#5c6478">RSI</div>${badgeHtml(rsiZ, last.rsi+' · '+rsiZ)}</div>
-        <div><div style="font-size:9px;color:#5c6478">VOLUME</div>${badgeHtml(volS, (last.volRatio||'?')+'x · '+volS)}</div>
-      </div>
-    </div>`;
-
-  // Indicators
-  document.getElementById('indicatorCard').innerHTML = `
-    <div class="grid grid-4">
-      <div><span style="font-size:9px;color:#5c6478">EMA9</span><br><span class="mono" style="color:#f59e0b;font-size:14px;font-weight:700">$${last.ema9}</span></div>
-      <div><span style="font-size:9px;color:#5c6478">EMA21</span><br><span class="mono" style="color:#4a9eff;font-size:14px;font-weight:700">$${last.ema21}</span></div>
-      <div><span style="font-size:9px;color:#5c6478">EMA200</span><br><span class="mono" style="color:#b08cff;font-size:14px;font-weight:700">$${last.ema200}</span></div>
-      <div><span style="font-size:9px;color:#5c6478">RSI</span><br><span class="mono" style="color:#06b6d4;font-size:14px;font-weight:700">${last.rsi||'—'}</span></div>
-    </div>`;
-
-  // Option quote
-  document.getElementById('optionCard').innerHTML = `
-    <div class="label">ATM Call Quote (if BUY fires today)</div>
-    <div class="grid grid-4" style="margin-top:8px">
-      <div class="metric"><div class="lbl">Strike</div><div class="val">$${K}</div></div>
-      <div class="metric"><div class="lbl">DTE</div><div class="val">${CONFIG.dte}</div></div>
-      <div class="metric"><div class="lbl">IV</div><div class="val">${Math.round(iv*1000)/10}%</div></div>
-      <div class="metric"><div class="lbl">Premium</div><div class="val">$${g.price}</div></div>
-      <div class="metric"><div class="lbl">1 Contract</div><div class="val">$${Math.round(g.price*100*100)/100}</div></div>
-      <div class="metric"><div class="lbl">Delta</div><div class="val">${g.delta}</div></div>
-      <div class="metric"><div class="lbl">Theta/day</div><div class="val red">$${g.theta}</div></div>
-      <div class="metric"><div class="lbl">SL Level</div><div class="val red">$${slLev}</div></div>
-      <div class="metric"><div class="lbl">TP Level</div><div class="val green">$${tpLev}</div></div>
-      <div class="metric"><div class="lbl">Max Risk</div><div class="val red">$${Math.round(slLev*10000)/100}</div></div>
-      <div class="metric"><div class="lbl">TP Value</div><div class="val green">$${Math.round(tpLev*10000)/100}</div></div>
-    </div>`;
-
-  document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleString();
-}
-
-function renderCharts(data) {
-  const gc="#1e2430",tc="#5c6478";
-  const labels=data.map(d=>d.date), closes=data.map(d=>d.close);
-  const e9=data.map(d=>d.ema9),e21=data.map(d=>d.ema21),e200=data.map(d=>d.ema200);
-  const rsi=data.map(d=>d.rsi), vr=data.map(d=>d.volRatio);
-  const bp=data.map(d=>d.signal==="BUY"?d.close:null);
-  const sp=data.map(d=>d.signal==="SELL"?d.close:null);
-
-  if(priceChartObj)priceChartObj.destroy();
-  if(rsiChartObj)rsiChartObj.destroy();
-  if(volChartObj)volChartObj.destroy();
-
-  priceChartObj = new Chart(document.getElementById('priceChart'),{type:'line',data:{labels,datasets:[
-    {label:'SPY',data:closes,borderColor:'#d4d8e3',borderWidth:2,pointRadius:0,tension:.1,order:4},
-    {label:'EMA9',data:e9,borderColor:'#f59e0b',borderWidth:1.5,pointRadius:0,tension:.1,order:3},
-    {label:'EMA21',data:e21,borderColor:'#4a9eff',borderWidth:1.5,pointRadius:0,tension:.1,order:2},
-    {label:'EMA200',data:e200,borderColor:'#b08cff',borderWidth:1.5,borderDash:[6,3],pointRadius:0,tension:.1,order:1},
-    {label:'BUY',data:bp,borderColor:'#22c55e',backgroundColor:'#22c55e',pointRadius:6,pointStyle:'triangle',showLine:false,order:0},
-    {label:'SELL',data:sp,borderColor:'#ef4444',backgroundColor:'#ef4444',pointRadius:6,pointStyle:'triangle',pointRotation:180,showLine:false,order:0}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{size:10},usePointStyle:true}}},
-    scales:{x:{ticks:{color:tc,maxTicksLimit:10,font:{size:9}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:10},callback:v=>'$'+v},grid:{color:gc}}}}});
-
-  rsiChartObj = new Chart(document.getElementById('rsiChart'),{type:'line',data:{labels,datasets:[
-    {data:rsi,borderColor:'#06b6d4',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(6,182,211,0.06)',tension:.1}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-    scales:{x:{ticks:{display:false},grid:{color:gc}},y:{min:0,max:100,ticks:{color:tc,font:{size:9},stepSize:20},grid:{color:gc}}}}});
-
-  volChartObj = new Chart(document.getElementById('volChart'),{type:'bar',data:{labels,datasets:[
-    {data:vr,backgroundColor:vr.map(v=>v&&v>1?'rgba(34,197,94,0.4)':'rgba(74,158,255,0.2)'),borderRadius:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-    scales:{x:{ticks:{display:false},grid:{color:gc}},y:{ticks:{color:tc,font:{size:9}},grid:{color:gc}}}}});
-}
-
-function renderPerformance(bt) {
-  const s=bt.stats;
-  if(!s){document.getElementById('performanceTab').innerHTML='<div class="card muted">No trades to show</div>';return;}
-  document.getElementById('performanceTab').innerHTML = `
-    <div class="card"><div class="label">Options Backtest · SL ${CONFIG.slPct}% / TP ${CONFIG.tpPct}% premium · DTE ${CONFIG.dte}</div>
-    <div class="grid grid-4" style="margin-top:8px">
-      <div class="metric"><div class="lbl">Trades</div><div class="val">${s.total}</div></div>
-      <div class="metric"><div class="lbl">Win Rate</div><div class="val ${s.winRate>=50?'green':'red'}">${s.winRate}%</div></div>
-      <div class="metric"><div class="lbl">Total P/L</div><div class="val ${s.totalPnl>=0?'green':'red'}">${s.totalPnl>=0?'+':''}$${s.totalPnl}</div></div>
-      <div class="metric"><div class="lbl">Avg Win</div><div class="val green">+$${s.avgWin}</div></div>
-      <div class="metric"><div class="lbl">Avg Loss</div><div class="val red">$${s.avgLoss}</div></div>
-      <div class="metric"><div class="lbl">R:R</div><div class="val ${s.rr>=2?'green':'amber'}">${s.rr}x</div></div>
-      <div class="metric"><div class="lbl">Profit Factor</div><div class="val ${s.pf>=1.5?'green':s.pf>=1?'amber':'red'}">${s.pf===Infinity?'∞':s.pf}</div></div>
-      <div class="metric"><div class="lbl">Best</div><div class="val green">+$${s.bestWin}</div></div>
-      <div class="metric"><div class="lbl">Worst</div><div class="val red">$${s.worstLoss}</div></div>
-      <div class="metric"><div class="lbl">Avg Cost</div><div class="val">$${s.avgCost}</div></div>
-      <div class="metric"><div class="lbl">Avg Hold</div><div class="val">${s.avgHold}d</div></div>
-    </div></div>
-    <div class="card"><div class="label">Exit Breakdown</div>
-    <div class="grid grid-4" style="margin-top:8px;text-align:center">
-      <div><div class="mono green" style="font-size:26px;font-weight:700">${s.tpEx}</div><div class="muted" style="font-size:10px">Take-Profit</div></div>
-      <div><div class="mono red" style="font-size:26px;font-weight:700">${s.slEx}</div><div class="muted" style="font-size:10px">Stop-Loss</div></div>
-      <div><div class="mono amber" style="font-size:26px;font-weight:700">${s.sigEx}</div><div class="muted" style="font-size:10px">Signal</div></div>
-      <div><div class="mono muted" style="font-size:26px;font-weight:700">${s.expEx}</div><div class="muted" style="font-size:10px">Expiry</div></div>
-    </div></div>`;
-}
-
-function renderTrades(bt) {
-  if (!bt.trades.length){document.getElementById('tradesTab').innerHTML='<div class="card muted">No trades</div>';return;}
-  let rows='';
-  for(const t of bt.trades){
-    const pc=t.pnl>=0?'#22c55e':'#ef4444';
-    const ps=t.pnl>=0?'+':'';
-    rows+=`<tr><td>${t.entryDate}</td><td>${t.exitDate}</td><td>${t.daysHeld}d</td>
-      <td>$${t.spyEntry}</td><td style="color:${pc}">${t.spyMove>=0?'+':''}$${t.spyMove}</td>
-      <td>$${t.strike}</td><td>${t.dteEntry}→${t.dteExit}</td>
-      <td>$${t.optEntry}</td><td>$${t.optExit}</td>
-      <td style="color:${pc};font-weight:700">${ps}$${t.pnl}</td>
-      <td style="color:${pc}">${ps}${t.pnlPct}%</td>
-      <td>${badgeHtml(t.reason)}</td></tr>`;
+  function addMessage(type, text) {
+    const div = document.createElement('div');
+    div.className = type === 'bot' ? 'msg msg-bot' : 'msg msg-user';
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    scrollToBottom();
   }
-  document.getElementById('tradesTab').innerHTML = `
-    <div class="card" style="overflow-x:auto"><div class="label">Trade Log · ${bt.trades.length} Trades</div>
-    <table><thead><tr><th>Entry</th><th>Exit</th><th>Held</th><th>SPY In</th><th>Move</th><th>Strike</th><th>DTE</th><th>Opt In</th><th>Opt Out</th><th>P/L</th><th>%</th><th>Exit</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>`;
-}
 
-function switchTab(tab, el) {
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('chartsTab').style.display = tab==='charts'?'block':'none';
-  document.getElementById('performanceTab').style.display = tab==='performance'?'block':'none';
-  document.getElementById('tradesTab').style.display = tab==='trades'?'block':'none';
-}
+  async function sendMessage(text) {
+    if (!text.trim()) return;
+    addMessage('user', text);
+    chatInput.value = '';
+    conversationHistory.push({ role: 'user', content: text });
 
-// ═══════════════════════════════════════════════════
-//  ENGINE START
-// ═══════════════════════════════════════════════════
-async function processData(rawData) {
-  CHART_DATA = generateSignals(rawData);
-  BACKTEST = backtestOptions(CHART_DATA);
-  document.getElementById('setupScreen').style.display='none';
-  document.getElementById('dashboard').style.display='block';
-  renderDashboard(CHART_DATA);
-  renderCharts(CHART_DATA);
-  renderPerformance(BACKTEST);
-  renderTrades(BACKTEST);
-}
+    typingIndicator.classList.add('show');
+    scrollToBottom();
 
-async function startEngine() {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key){document.getElementById('setupStatus').innerHTML='<span style="color:#ef4444">Please enter an API key</span>';return;}
-  document.getElementById('setupStatus').innerHTML='<span class="pulse" style="color:#f59e0b">⏳ Fetching SPY data...</span>';
-  try {
-    const raw = await fetchSPYData(key);
-    API_KEY = key; localStorage.setItem('av_api_key', key);
-    await processData(raw);
-  } catch(e) {
-    document.getElementById('setupStatus').innerHTML=`<span style="color:#ef4444">❌ ${e.message}</span>`;
-  }
-}
-
-async function refreshData() {
-  if (!API_KEY) return;
-  try {
-    const raw = await fetchSPYData(API_KEY);
-    await processData(raw);
-  } catch(e) { alert('Refresh failed: '+e.message); }
-}
-
-function loadJsonFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
     try {
-      const json = JSON.parse(e.target.result);
-      if (json.chart_data) {
-        // Python script output — chart_data has close/ema9/etc already
-        const data = json.chart_data.map(d=>({
-          date:d.date, close:d.close, high:d.high||d.close, low:d.low||d.close,
-          volume:d.volume||50000000, ema9:d.ema9, ema21:d.ema21, ema200:d.ema200,
-          rsi:d.rsi, volRatio:d.volRatio||1, hv:d.hv||0.16, signal:d.signal||null
-        }));
-        CHART_DATA = data;
-        BACKTEST = backtestOptions(data);
-        document.getElementById('setupScreen').style.display='none';
-        document.getElementById('dashboard').style.display='block';
-        renderDashboard(data);
-        renderCharts(data);
-        renderPerformance(BACKTEST);
-        renderTrades(BACKTEST);
-      }
-    } catch(err) { alert('Error loading JSON: '+err.message); }
-  };
-  reader.readAsText(file);
-}
-
-// ═══════════════════════════════════════════════════
-//  ACCESS GATE
-// ═══════════════════════════════════════════════════
-// Change this hash to set your own password. Default: "zephrum2026"
-// To generate a new hash, run in browser console: 
-//   crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourpassword')).then(b=>console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')))
-const ACCESS_HASH = 'a1c4e2b8f3d6a9c1e5b7d2f4a8c3e6b9d1f5a7c2e4b8d3f6a9c1e5b7d2f4a8';
-
-async function hashStr(s) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return Array.from(new Uint8Array(buf)).map(x=>x.toString(16).padStart(2,'0')).join('');
-}
-
-async function checkAccess() {
-  const code = document.getElementById('accessCode').value.trim();
-  if (!code){document.getElementById('accessStatus').innerHTML='<span style="color:#ef4444">Enter your access code</span>';return;}
-  // Simple check — change the password below to whatever you want
-  if (code === 'zephrum2026') {
-    localStorage.setItem('spy_access','granted');
-    document.getElementById('accessGate').style.display='none';
-    document.getElementById('setupScreen').style.display='block';
-  } else {
-    document.getElementById('accessStatus').innerHTML='<span style="color:#ef4444">Access denied</span>';
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: conversationHistory, city: 'Jabodetabek' })
+      });
+      const data = await res.json();
+      const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
+      conversationHistory.push({ role: 'assistant', content: reply });
+      typingIndicator.classList.remove('show');
+      addMessage('bot', reply);
+    } catch (err) {
+      typingIndicator.classList.remove('show');
+      addMessage('bot', 'Waduh, koneksinya lagi bermasalah. Coba lagi nanti ya!');
+    }
   }
-}
 
-// Auto-load if key saved
-window.addEventListener('DOMContentLoaded', () => {
-  // Check if already authenticated
-  if (localStorage.getItem('spy_access')==='granted') {
-    document.getElementById('accessGate').style.display='none';
-    document.getElementById('setupScreen').style.display='block';
+  function submitMain() {
+    const val = mainInput.value.trim();
+    if (val) { openChat(val); mainInput.value = ''; }
+    else openChat();
   }
-  if (API_KEY) {
-    document.getElementById('apiKeyInput').value = API_KEY;
-  }
-});
+  mainSend.addEventListener('click', submitMain);
+  mainInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitMain(); });
+
+  chatSend.addEventListener('click', () => sendMessage(chatInput.value));
+  chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(chatInput.value); });
 </script>
+
 </body>
 </html>
