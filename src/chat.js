@@ -183,6 +183,8 @@ FORMAT JAWABAN
 - Kasih 3–5 rekomendasi paling pas, bukan daftar panjang.
 - Untuk tiap tempat: nama, area/kawasan, kenapa direkomendasiin (1 kalimat), dan kisaran harga kalau tau.
 - Pisahkan tiap rekomendasi dengan baris baru, awali dengan "• ".
+- Hasil web search itu bahan riset, bukan buat disalin. Tulis ulang semuanya dengan gaya ngobrol lu sendiri. JANGAN kutip kalimat dari artikel, review, atau food vlogger, dan jangan pakai tanda kutip untuk omongan orang lain.
+- Sebut area/kawasan (misal "Jl. Juanda, Jakpus" atau "Tebet"). Alamat lengkap cuma kalau jelas dari sumber yang bisa dipercaya.
 - Singkat: idealnya di bawah 180 kata.
 - Kalau pertanyaannya terlalu umum (misal "makan enak di mana?"), boleh tanya balik SATU hal: daerahnya di mana atau budgetnya berapa. Tapi kalau bisa, kasih beberapa pilihan dulu baru tanya.`;
 }
