@@ -6,6 +6,9 @@
 <title>Nanya Dong — Teman Lokal yang Tau Segalanya</title>
 <meta name="description" content="Nanya Dong — platform AI untuk menemukan tempat makan, nongkrong, ahli lokal, dan hidden gems di Indonesia. Mulai dari Jabodetabek.">
 <meta name="theme-color" content="#06513F">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -663,7 +666,7 @@
     conversationHistory = [];
     document.body.style.overflow = 'hidden';
 
-    addMessage('bot', 'Halo! NanyaDong.com, teman lokal mu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
+    addMessage('bot', 'Halo! NanyaDong.com, teman lokal lu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
 
     if (prefill) setTimeout(() => sendMessage(prefill), 400);
     else chatInput.focus();
