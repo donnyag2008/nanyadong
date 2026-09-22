@@ -5,12 +5,13 @@
  * Environment (Worker → Settings → Variables and Secrets):
  *   ANTHROPIC_API_KEY  (secret, required)
  *   MODEL              (optional, default below)
+ *   GOOGLE_PLACES_KEY  (secret, optional — enables photo cards)
  *
  * Bindings (wrangler.jsonc → kv_namespaces):
  *   RATE_LIMIT         KV namespace (optional but strongly recommended)
  *
  * Request:  POST { messages: [{role, content}], city: "Jabodetabek" }
- * Response: { reply: "...", sources: [{ title, url }] }
+ * Response: { reply, sources: [{ title, url, site }], places: [{ ...card }] }
  */
 
 const DEFAULT_MODEL = 'claude-sonnet-5';
@@ -71,8 +72,9 @@ export async function handleChat(request, env) {
     };
 
     // 5. Call Claude
-    const { reply, sources } = await askClaude(env, messages, city, userGeo);
-    return json({ reply, sources });
+    const { reply, sources, placeHints } = await askClaude(env, messages, city, userGeo);
+    const places = await lookupPlaces(env, placeHints);
+    return json({ reply, sources, places });
 
   } catch (err) {
     console.error('chat error:', err && err.stack ? err.stack : err);
@@ -147,7 +149,8 @@ async function askClaude(env, messages, city, userGeo) {
     break;
   }
 
-  const reply = cleanReply(textParts.join('')) ||
+  const { text: rawText, hints: placeHints } = extractPlaceHints(textParts.join(''));
+  const reply = cleanReply(rawText) ||
     'Hmm, gue belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
 
   // Up to 4 sources, at most one per website
@@ -162,7 +165,7 @@ async function askClaude(env, messages, city, userGeo) {
     if (sources.length >= 4) break;
   }
 
-  return { reply, sources };
+  return { reply, sources, placeHints };
 }
 
 function buildSystemPrompt(city, userGeo) {
@@ -208,7 +211,39 @@ FORMAT JAWABAN
 - Hasil web search itu bahan riset, bukan buat disalin. Tulis ulang semuanya dengan gaya ngobrol lu sendiri. JANGAN kutip kalimat dari artikel, review, atau food vlogger, dan jangan pakai tanda kutip untuk omongan orang lain.
 - Sebut area/kawasan (misal "Jl. Juanda, Jakpus" atau "Tebet"). Alamat lengkap cuma kalau jelas dari sumber yang bisa dipercaya.
 - Singkat: idealnya di bawah 180 kata.
-- Kalau pertanyaannya terlalu umum (misal "makan enak di mana?"), boleh tanya balik SATU hal: daerahnya di mana atau budgetnya berapa. Tapi kalau bisa, kasih beberapa pilihan dulu baru tanya.`;
+- Kalau pertanyaannya terlalu umum (misal "makan enak di mana?"), boleh tanya balik SATU hal: daerahnya di mana atau budgetnya berapa. Tapi kalau bisa, kasih beberapa pilihan dulu baru tanya.
+
+DATA TEMPAT (untuk kartu foto — user nggak lihat blok ini)
+Di paling akhir jawaban, SETELAH semua teks, tambahkan satu blok persis seperti ini:
+<places>[{"name":"Nama Tempat","area":"Kawasan, Kota"}]</places>
+- Isi dengan tempat usaha spesifik yang lu rekomendasiin di jawaban ini, maksimal 5, urutannya sama dengan di jawaban.
+- "name" = nama tempat persis (tanpa kata "RM" kalau aslinya nggak pakai), "area" = kawasan + kota (misal "Tebet, Jakarta Selatan").
+- Kalau nggak ada tempat spesifik (misal info macet, tips umum, atau lu cuma tanya balik), tulis <places>[]</places>.
+- Jangan pernah menyebut blok ini di dalam teks jawaban.`;
+}
+
+// Pull the hidden <places>[...]</places> block out of the model's text
+function extractPlaceHints(text) {
+  const re = /<places>([\s\S]*?)<\/places>/i;
+  const m = text.match(re);
+  let hints = [];
+  if (m) {
+    try {
+      const parsed = JSON.parse(m[1].trim());
+      if (Array.isArray(parsed)) {
+        hints = parsed
+          .filter(p => p && typeof p.name === 'string' && p.name.trim())
+          .slice(0, 5)
+          .map(p => ({
+            name: p.name.trim().slice(0, 80),
+            area: typeof p.area === 'string' ? p.area.trim().slice(0, 80) : ''
+          }));
+      }
+    } catch { /* malformed JSON: no cards, answer still shown */ }
+  }
+  // Remove the block (and any unterminated remainder) from the visible reply
+  const cleaned = text.replace(re, '').replace(/<places>[\s\S]*$/i, '');
+  return { text: cleaned, hints };
 }
 
 function cleanReply(text) {
@@ -218,6 +253,121 @@ function cleanReply(text) {
     .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '$1 ($2)') // markdown links → plain
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+// ---------------------------------------------------------------------------
+// Google Places (New): verify each place and fetch a photo
+
+const PLACES_FIELDS = [
+  'places.id',
+  'places.displayName',
+  'places.formattedAddress',
+  'places.shortFormattedAddress',
+  'places.rating',
+  'places.userRatingCount',
+  'places.googleMapsUri',
+  'places.businessStatus',
+  'places.currentOpeningHours.openNow',
+  'places.photos'
+].join(',');
+
+async function lookupPlaces(env, hints) {
+  if (!env.GOOGLE_PLACES_KEY || !Array.isArray(hints) || hints.length === 0) return [];
+  const results = await Promise.all(hints.map(h => lookupOne(env, h).catch(err => {
+    console.error('places lookup failed', h.name, String(err));
+    return null;
+  })));
+  // Drop misses and duplicates
+  const seen = new Set();
+  return results.filter(p => p && !seen.has(p.id) && seen.add(p.id));
+}
+
+async function lookupOne(env, hint) {
+  const res = await fetchWithTimeout('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY,
+      'X-Goog-FieldMask': PLACES_FIELDS
+    },
+    body: JSON.stringify({
+      textQuery: [hint.name, hint.area].filter(Boolean).join(', '),
+      languageCode: 'id',
+      regionCode: 'ID',
+      maxResultCount: 1,
+      // Bias towards Jabodetabek (centre of Jakarta, 50 km radius)
+      locationBias: {
+        circle: { center: { latitude: -6.2, longitude: 106.83 }, radius: 50000 }
+      }
+    })
+  }, 6000);
+
+  if (!res.ok) {
+    console.error('Places API', res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
+  const data = await res.json();
+  const p = data.places && data.places[0];
+  if (!p) return null;
+
+  const foundName = (p.displayName && p.displayName.text) || '';
+  if (!namesMatch(hint.name, foundName)) return null; // Google found something else
+
+  let photo = null;
+  const ph = Array.isArray(p.photos) ? p.photos[0] : null;
+  if (ph && ph.name) {
+    photo = await getPhotoUrl(env, ph.name).catch(() => null);
+    if (photo) {
+      const author = Array.isArray(ph.authorAttributions) ? ph.authorAttributions[0] : null;
+      photo = {
+        url: photo,
+        author: author ? author.displayName : null,
+        authorUrl: author ? author.uri : null
+      };
+    }
+  }
+
+  return {
+    id: p.id,
+    name: foundName,
+    address: p.shortFormattedAddress || p.formattedAddress || hint.area,
+    rating: typeof p.rating === 'number' ? p.rating : null,
+    ratingCount: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
+    mapsUrl: p.googleMapsUri || null,
+    status: p.businessStatus || null,          // OPERATIONAL, CLOSED_TEMPORARILY, CLOSED_PERMANENTLY
+    openNow: p.currentOpeningHours ? p.currentOpeningHours.openNow : null,
+    photo
+  };
+}
+
+// Ask Google for a short-lived public photo URL, so the API key never reaches the browser
+async function getPhotoUrl(env, photoName) {
+  const url = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=480&skipHttpRedirect=true`;
+  const res = await fetchWithTimeout(url, {
+    headers: { 'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY }
+  }, 5000);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.photoUri || null;
+}
+
+// Loose name check: at least one meaningful word in common
+function namesMatch(wanted, found) {
+  const stop = new Set(['rm', 'rumah', 'makan', 'restoran', 'restaurant', 'warung', 'kedai', 'cafe', 'kafe',
+    'coffee', 'kopi', 'the', 'dan', 'and', 'di', 'jakarta', 'cabang', 'branch']);
+  const words = s => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
+  const a = new Set(words(wanted));
+  const b = words(found);
+  if (a.size === 0) return b.length > 0; // name made only of generic words: trust Google
+  return b.some(w => a.has(w));
+}
+
+async function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(t); }
 }
 
 // ---------------------------------------------------------------------------
