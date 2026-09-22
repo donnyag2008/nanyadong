@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Nanya Dong — Teman Lokal yang Tau Segalanya</title>
+<meta name="description" content="Nanya Dong — platform AI untuk menemukan tempat makan, nongkrong, ahli lokal, dan hidden gems di Indonesia. Mulai dari Jabodetabek.">
+<meta name="theme-color" content="#06513F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Brand */
+    --pandan: #0D8A6A;
+    --pandan-dark: #06513F;
+    --pandan-deep: #043B2E;
+    --kunyit: #F5B820;
+    --sambal: #E0402A;
+
+    /* Pillar colours: [solid, tint] */
+    --kuliner: #E0402A;   --kuliner-tint: #FDE9E5;
+    --ahli: #7B4FD6;      --ahli-tint: #EFE9FC;
+    --tempat: #D98A00;    --tempat-tint: #FFF3D6;
+    --hunian: #1F74D6;    --hunian-tint: #E4F0FD;
+    --info: #D12A62;      --info-tint: #FCE6EE;
+    --serba: #0D8A6A;     --serba-tint: #E2F4EE;
+
+    --ink: #1A1918;
+    --ink-2: #4A4946;
+    --ink-3: #8A8984;
+    --line: #E6E4DF;
+    --paper: #FFFFFF;
+    --wash: #F7F6F3;
+
+    --wrap: 1240px;
+    --radius-lg: 20px;
+    --radius: 14px;
+    --radius-sm: 10px;
+
+    /* To use a photo in the hero later: upload /images/hero.webp
+       and add class="has-photo" to <section class="hero">. */
+    --hero-photo: url('/images/hero.webp');
+  }
+
+  html { scroll-padding-top: 72px; }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; }
+  :focus-visible { outline: 3px solid var(--kunyit); outline-offset: 2px; border-radius: 6px; }
+
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- Header ---------- */
+  .header {
+    background: var(--pandan-deep);
+    position: sticky; top: 0; z-index: 100;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .header-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+  }
+  .logo { display: flex; align-items: center; gap: 2px; text-decoration: none; }
+  .logo-text { font-size: 21px; font-weight: 800; color: #fff; letter-spacing: -0.6px; }
+  .logo-dot {
+    width: 7px; height: 7px; background: var(--kunyit); border-radius: 50%;
+    display: inline-block; margin-left: 2px; position: relative; top: 5px;
+  }
+  .city-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 999px; padding: 7px 14px;
+    font-size: 13px; font-weight: 600; color: #fff; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .city-btn:hover { background: rgba(255,255,255,0.18); }
+  .city-btn svg { width: 14px; height: 14px; }
+  .city-btn .pin { color: var(--kunyit); }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    background-color: var(--pandan-dark);
+    /* kawung-inspired dot pattern */
+    background-image:
+      radial-gradient(ellipse 9px 14px at 50% 0%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 9px 14px at 50% 100%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 14px 9px at 0% 50%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 14px 9px at 100% 50%, rgba(255,255,255,0.035) 98%, transparent 100%);
+    background-size: 44px 44px;
+    color: #fff;
+    overflow: hidden;
+  }
+  .hero.has-photo {
+    background-image:
+      linear-gradient(100deg, rgba(4,59,46,0.92) 0%, rgba(4,59,46,0.75) 45%, rgba(4,59,46,0.35) 100%),
+      var(--hero-photo);
+    background-size: cover;
+    background-position: center;
+  }
+  .hero::after {
+    /* sambal & kunyit stripe along the bottom edge */
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    background: linear-gradient(90deg, var(--sambal) 0 33%, var(--kunyit) 33% 66%, var(--pandan) 66% 100%);
+  }
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 44px 20px 52px;
+    align-items: center;
+  }
+  .hero-tagline {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 600; color: var(--kunyit);
+    margin-bottom: 14px;
+  }
+  .hero-tagline::before {
+    content: ""; width: 22px; height: 3px; border-radius: 2px; background: var(--kunyit);
+  }
+  .hero-title {
+    font-size: clamp(34px, 5.6vw, 64px);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    max-width: 12ch;
+    margin-bottom: 14px;
+  }
+  .hero-sub {
+    font-size: 16px; color: rgba(255,255,255,0.82);
+    max-width: 46ch; margin-bottom: 26px;
+  }
+
+  /* Chat input */
+  .chat-box { max-width: 640px; }
+  .chat-input-wrap {
+    display: flex; align-items: center;
+    background: #fff;
+    border-radius: 16px;
+    padding: 6px 6px 6px 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .chat-input-wrap:focus-within { border-color: var(--kunyit); }
+  .chat-input {
+    flex: 1; min-width: 0; border: none; outline: none;
+    font-size: 16px; font-family: inherit; color: var(--ink);
+    background: transparent; padding: 12px 0;
+  }
+  .chat-input::placeholder { color: var(--ink-3); }
+  .chat-send {
+    background: var(--sambal); border: none; border-radius: 12px;
+    height: 48px; padding: 0 20px;
+    display: flex; align-items: center; gap: 8px;
+    color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .chat-send:hover { background: #C4331F; }
+  .chat-send:active { transform: scale(0.97); }
+  .chat-send svg { width: 18px; height: 18px; }
+  .chat-hint { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 10px; }
+
+  /* Example question thread (right column) */
+  .thread {
+    display: none;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    backdrop-filter: blur(4px);
+  }
+  .thread-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 14px;
+  }
+  .thread-head strong { color: #fff; font-weight: 700; font-size: 14px; }
+  .thread-list { display: flex; flex-direction: column; gap: 10px; min-height: 330px; }
+  .q-bubble {
+    align-self: flex-start;
+    max-width: 92%;
+    text-align: left;
+    background: #fff; color: var(--ink);
+    border: none; border-radius: 16px 16px 16px 4px;
+    padding: 10px 14px 10px 12px;
+    display: flex; gap: 10px; align-items: flex-start;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    transition: transform 0.12s;
+  }
+  .q-bubble:nth-child(even) { align-self: flex-end; border-radius: 16px 16px 4px 16px; }
+  .q-bubble:hover { transform: translateY(-2px); }
+  .q-avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 14px;
+  }
+  .q-text { font-size: 14px; font-weight: 500; line-height: 1.4; }
+  .q-tag { display: block; font-size: 11px; font-weight: 700; margin-top: 3px; }
+  .q-bubble.enter { animation: pop 0.45s cubic-bezier(.2,.9,.3,1.3) both; }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Sections ---------- */
+  .section { padding: 44px 0 8px; }
+  .section-title {
+    font-size: clamp(22px, 2.6vw, 30px); font-weight: 800;
+    letter-spacing: -0.02em; line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .section-sub { font-size: 15px; color: var(--ink-2); margin-bottom: 22px; }
+
+  /* Categories */
+  .categories {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .cat-card {
+    --c: var(--serba); --t: var(--serba-tint);
+    background: var(--t);
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    text-align: left; cursor: pointer;
+    transition: border-color 0.15s, transform 0.12s;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .cat-card:hover { border-color: var(--c); transform: translateY(-2px); }
+  .cat-card:active { transform: scale(0.98); }
+  .cat-card[data-cat="kuliner"] { --c: var(--kuliner); --t: var(--kuliner-tint); }
+  .cat-card[data-cat="ahli"]    { --c: var(--ahli);    --t: var(--ahli-tint); }
+  .cat-card[data-cat="tempat"]  { --c: var(--tempat);  --t: var(--tempat-tint); }
+  .cat-card[data-cat="hunian"]  { --c: var(--hunian);  --t: var(--hunian-tint); }
+  .cat-card[data-cat="info"]    { --c: var(--info);    --t: var(--info-tint); }
+  .cat-card[data-cat="serba"]   { --c: var(--serba);   --t: var(--serba-tint); }
+  .cat-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--c); color: #fff;
+    display: grid; place-items: center; font-size: 22px;
+    margin-bottom: 10px;
+  }
+  .cat-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .cat-desc { font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+
+  /* Question cards */
+  .q-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .q-card {
+    --c: var(--serba); --t: var(--serba-tint);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--c);
+    border-radius: var(--radius);
+    padding: 16px 16px 16px 14px;
+    display: flex; align-items: center; gap: 14px;
+    text-align: left; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .q-card:hover { border-color: var(--c); box-shadow: 0 6px 18px rgba(26,25,24,0.08); }
+  .q-card[data-cat="kuliner"] { --c: var(--kuliner); --t: var(--kuliner-tint); }
+  .q-card[data-cat="ahli"]    { --c: var(--ahli);    --t: var(--ahli-tint); }
+  .q-card[data-cat="tempat"]  { --c: var(--tempat);  --t: var(--tempat-tint); }
+  .q-card[data-cat="hunian"]  { --c: var(--hunian);  --t: var(--hunian-tint); }
+  .q-badge {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--t); display: grid; place-items: center;
+    font-size: 19px; flex-shrink: 0;
+  }
+  .q-body { flex: 1; min-width: 0; }
+  .q-title { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+  .q-meta { font-size: 12px; font-weight: 700; color: var(--c); margin-top: 3px; }
+  .q-arrow { width: 18px; height: 18px; color: var(--ink-3); flex-shrink: 0; }
+
+  /* ---------- Footer ---------- */
+  .footer {
+    margin-top: 56px;
+    background: var(--wash);
+    border-top: 1px solid var(--line);
+    padding: 28px 0 calc(32px + env(safe-area-inset-bottom, 0px));
+    font-size: 13px; color: var(--ink-3);
+  }
+  .footer-inner { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+  .footer strong { color: var(--pandan); font-weight: 800; }
+
+  /* ---------- Chat overlay ---------- */
+  .chat-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--wash); z-index: 200; flex-direction: column;
+  }
+  .chat-overlay.open { display: flex; }
+  .chat-header {
+    background: var(--pandan-deep); color: #fff;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .chat-header-inner {
+    max-width: 820px; margin: 0 auto; height: 56px; padding: 0 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chat-back {
+    background: none; border: none; cursor: pointer; color: #fff;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 14px; font-weight: 600; padding: 6px 0;
+  }
+  .chat-back svg { width: 18px; height: 18px; }
+  .chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 20px 16px;
+  }
+  .chat-column {
+    max-width: 820px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg {
+    max-width: 85%; padding: 11px 15px; border-radius: 18px;
+    font-size: 15px; line-height: 1.55; white-space: pre-wrap;
+  }
+  .msg-bot {
+    background: #fff; color: var(--ink); align-self: flex-start;
+    border-bottom-left-radius: 4px; border: 1px solid var(--line);
+  }
+  .msg-user {
+    background: var(--pandan); color: #fff; align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-typing {
+    align-self: flex-start; background: #fff; border: 1px solid var(--line);
+    padding: 12px 18px; border-radius: 18px; border-bottom-left-radius: 4px;
+    display: none;
+  }
+  .msg-typing.show { display: flex; }
+  .typing-dots { display: flex; gap: 4px; align-items: center; }
+  .typing-dots span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3);
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.15s; background: var(--kunyit); }
+  .typing-dots span:nth-child(3) { animation-delay: 0.3s; background: var(--sambal); }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+  .chat-input-bar {
+    background: #fff; border-top: 1px solid var(--line);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .chat-input-bar .chat-input-wrap {
+    max-width: 820px; margin: 0 auto;
+    box-shadow: none; border: 2px solid var(--line);
+  }
+  .chat-input-bar .chat-input-wrap:focus-within { border-color: var(--pandan); }
+  .chat-input-bar .chat-send { padding: 0 14px; }
+
+  /* ---------- Responsive ---------- */
+  @media (min-width: 640px) {
+    .categories { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .q-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1000px) {
+    .hero-inner {
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 56px;
+      padding: 72px 20px 80px;
+    }
+    .thread { display: block; }
+    .categories { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .q-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .section { padding-top: 56px; }
+  }
+  @media (max-width: 480px) {
+    .chat-send .send-label { display: none; }
+    .chat-send { padding: 0 14px; }
+    .hero-inner { padding: 32px 20px 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="wrap header-inner">
+    <a class="logo" href="/" aria-label="NanyaDong beranda">
+      <span class="logo-text">NanyaDong</span><span class="logo-dot"></span>
+    </a>
+    <button class="city-btn" id="cityBtn" type="button">
+      <svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Jabodetabek
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- Hero (add class "has-photo" once /images/hero.webp exists) -->
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div>
+        <p class="hero-tagline">Teman lokal yang tau segalanya</p>
+        <h1 class="hero-title">Mau nanya apa hari ini?</h1>
+        <p class="hero-sub">Tempat makan, tukang urut, hidden gems, kos-kosan — tanya kayak ke temen yang udah lama tinggal di Jabodetabek.</p>
+
+        <div class="chat-box">
+          <div class="chat-input-wrap">
+            <input type="text" class="chat-input" id="mainInput" placeholder="Cari tempat makan, tukang pijit, kos-kosan..." autocomplete="off" aria-label="Tulis pertanyaan">
+            <button class="chat-send" id="mainSend" type="button" aria-label="Tanya">
+              <span class="send-label">Tanya</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <p class="chat-hint">Bahasa Indonesia atau English, dua-duanya bisa.</p>
+        </div>
+      </div>
+
+      <aside class="thread" aria-label="Contoh pertanyaan">
+        <div class="thread-head">
+          <strong>Contoh pertanyaan</strong>
+          <span>Klik buat nanya</span>
+        </div>
+        <div class="thread-list" id="threadList"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  <section class="section">
+    <div class="wrap">
+      <h2 class="section-title">Mulai dari sini</h2>
+      <p class="section-sub">Pilih topik, atau langsung tanya di atas.</p>
+      <div class="categories">
+        <button class="cat-card" data-cat="kuliner" type="button" onclick="openChat('Rekomendasiin tempat makan atau nongkrong enak di Jabodetabek dong')">
+          <span class="cat-icon" aria-hidden="true">☕</span>
+          <span class="cat-title">Kuliner & nongkrong</span>
+          <span class="cat-desc">Cafe, warung, kopi, masakan daerah</span>
+        </button>
+        <button class="cat-card" data-cat="ahli" type="button" onclick="openChat('Cariin ahli atau spesialis yang bagus di Jabodetabek dong')">
+          <span class="cat-icon" aria-hidden="true">💆</span>
+          <span class="cat-title">Ahli & spesialis</span>
+          <span class="cat-desc">Pijit, urut, dokter, tukang</span>
+        </button>
+        <button class="cat-card" data-cat="tempat" type="button" onclick="openChat('Ada tempat menarik atau hidden gem di Jabodetabek yang belum banyak orang tau?')">
+          <span class="cat-icon" aria-hidden="true">🗺️</span>
+          <span class="cat-title">Tempat menarik</span>
+          <span class="cat-desc">Hidden gems, bukan wisata biasa</span>
+        </button>
+        <button class="cat-card" data-cat="hunian" type="button" onclick="openChat('Cariin info kos-kosan atau kontrakan murah di Jabodetabek dong')">
+          <span class="cat-icon" aria-hidden="true">🏠</span>
+          <span class="cat-title">Hunian</span>
+          <span class="cat-desc">Kos, kontrakan, info harga</span>
+        </button>
+        <button class="cat-card" data-cat="info" type="button" onclick="openChat('Ada info macet, banjir, atau keributan di Jabodetabek hari ini?')">
+          <span class="cat-icon" aria-hidden="true">🚦</span>
+          <span class="cat-title">Info sekitar</span>
+          <span class="cat-desc">Macet, banjir, demo, keributan</span>
+        </button>
+        <button class="cat-card" data-cat="serba" type="button" onclick="openChat('Butuh rekomendasi jasa atau tempat servis di Jabodetabek')">
+          <span class="cat-icon" aria-hidden="true">🔧</span>
+          <span class="cat-title">Serba-serbi</span>
+          <span class="cat-desc">Laundry, bengkel, notaris, dll</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Question cards -->
+  <section class="section">
+    <div class="wrap">
+      <h2 class="section-title">Coba tanya ini</h2>
+      <p class="section-sub">Pertanyaan yang sering muncul di grup WA — sekarang ada yang jawab.</p>
+      <div class="q-grid" id="qGrid"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <p><strong>NanyaDong</strong> — Teman lokal yang tau segalanya</p>
+    <p>&copy; 2026 nanyadong.com</p>
+  </div>
+</footer>
+
+<!-- Chat Overlay -->
+<div class="chat-overlay" id="chatOverlay" role="dialog" aria-modal="true" aria-label="Chat NanyaDong">
+  <div class="chat-header">
+    <div class="chat-header-inner">
+      <button class="chat-back" type="button" onclick="closeChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Kembali
+      </button>
+      <span class="logo"><span class="logo-text" style="font-size:17px">NanyaDong</span><span class="logo-dot"></span></span>
+    </div>
+  </div>
+  <div class="chat-messages" id="chatScroll">
+    <div class="chat-column" id="chatMessages"></div>
+    <div class="chat-column">
+      <div class="msg-typing" id="typingIndicator">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+  </div>
+  <div class="chat-input-bar">
+    <div class="chat-input-wrap">
+      <input type="text" class="chat-input" id="chatInput" placeholder="Nanya lagi..." autocomplete="off" aria-label="Tulis pertanyaan">
+      <button class="chat-send" id="chatSend" type="button" aria-label="Kirim">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ---------- Content ---------- */
+  const CATS = {
+    kuliner: { label: 'Kuliner & nongkrong', emoji: '☕', color: 'var(--kuliner)', tint: 'var(--kuliner-tint)' },
+    ahli:    { label: 'Ahli & spesialis',    emoji: '💆', color: 'var(--ahli)',    tint: 'var(--ahli-tint)' },
+    tempat:  { label: 'Tempat menarik',      emoji: '🗺️', color: 'var(--tempat)',  tint: 'var(--tempat-tint)' },
+    hunian:  { label: 'Hunian',              emoji: '🏠', color: 'var(--hunian)',  tint: 'var(--hunian-tint)' },
+    info:    { label: 'Info sekitar',        emoji: '🚦', color: 'var(--info)',    tint: 'var(--info-tint)' },
+    serba:   { label: 'Serba-serbi',         emoji: '🔧', color: 'var(--serba)',   tint: 'var(--serba-tint)' }
+  };
+
+  // Cards below the categories (same questions as before)
+  const QUESTIONS = [
+    { cat: 'kuliner', title: 'Kopi susu gula aren terbaik di Jaksel', ask: 'Kopi susu gula aren terbaik di Jakarta Selatan di mana ya?' },
+    { cat: 'ahli',    title: 'Tukang urut saraf kejepit yang manjur', ask: 'Tukang urut saraf kejepit yang bagus di Jabodetabek di mana ya?' },
+    { cat: 'tempat',  title: 'Cafe baru yang lagi hits di Kemang', ask: 'Tempat nongkrong baru yang lagi hits di Kemang atau Senopati?' },
+    { cat: 'hunian',  title: 'Kos murah di Tangerang & Depok buat pegawai', ask: 'Rekomendasi kos-kosan murah di Tangerang atau Depok buat pegawai dong' },
+    { cat: 'kuliner', title: 'Nasi Padang rasa asli Padang di Jabodetabek', ask: 'Nasi Padang paling enak di Jabodetabek yang mirip rasa asli Padang di mana?' },
+    { cat: 'kuliner', title: 'Teh telur mantap di Jabodetabek', ask: 'Di mana bisa dapat teh telur yang mantap di Jabodetabek?' },
+    { cat: 'kuliner', title: 'Martabak Pecenongan yang paling enak', ask: 'Martabak Pecenongan yang paling enak yang mana sih? Ada rekomendasi?' },
+    { cat: 'kuliner', title: 'Nasi goreng paling sedap dan legendaris', ask: 'Nasi goreng paling sedap di Jabodetabek di mana ya? Yang legendaris' },
+    { cat: 'tempat',  title: 'Sarapan pagi asyik buat weekend', ask: 'Tempat sarapan pagi yang asyik dan enak di Jabodetabek? Buat weekend' }
+  ];
+
+  // Example questions cycling in the hero (desktop)
+  const THREAD = [
+    { cat: 'kuliner', q: 'Kopi susu gula aren paling enak di Jaksel di mana?' },
+    { cat: 'ahli',    q: 'Tukang urut saraf kejepit deket Cibubur ada gak?' },
+    { cat: 'hunian',  q: 'Kos buat pegawai di BSD kisaran berapa sebulan?' },
+    { cat: 'info',    q: 'Sudirman hari ini macet parah gak?' },
+    { cat: 'serba',   q: 'Bengkel motor yang jujur di Depok?' },
+    { cat: 'tempat',  q: 'Hidden gem buat weekend di Bogor?' },
+    { cat: 'kuliner', q: 'Nasi Padang rasa asli di Bekasi yang mana?' },
+    { cat: 'ahli',    q: 'Tukang jahit kebaya yang rapi di Jaktim?' }
+  ];
+
+  const PLACEHOLDERS = [
+    'Cari tempat makan, tukang pijit, kos-kosan...',
+    'Martabak paling enak di Pecenongan?',
+    'Tukang urut deket BSD ada?',
+    'Cafe buat kerja yang tenang di Jaksel?',
+    'Laundry kiloan murah di Depok?'
+  ];
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- Render question cards ---------- */
+  const qGrid = document.getElementById('qGrid');
+  QUESTIONS.forEach(item => {
+    const c = CATS[item.cat];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'q-card';
+    btn.dataset.cat = item.cat;
+    btn.innerHTML = `
+      <span class="q-badge" aria-hidden="true">${c.emoji}</span>
+      <span class="q-body">
+        <span class="q-title" style="display:block"></span>
+        <span class="q-meta" style="display:block">${c.label}</span>
+      </span>
+      <svg class="q-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`;
+    btn.querySelector('.q-title').textContent = item.title;
+    btn.addEventListener('click', () => openChat(item.ask));
+    qGrid.appendChild(btn);
+  });
+
+  /* ---------- Hero thread ---------- */
+  const threadList = document.getElementById('threadList');
+  const MAX_BUBBLES = 5;
+  let threadIdx = 0;
+
+  function makeBubble(item, animate) {
+    const c = CATS[item.cat];
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'q-bubble' + (animate ? ' enter' : '');
+    b.innerHTML = `
+      <span class="q-avatar" style="background:${c.tint}" aria-hidden="true">${c.emoji}</span>
+      <span><span class="q-text"></span><span class="q-tag" style="color:${c.color}">${c.label}</span></span>`;
+    b.querySelector('.q-text').textContent = item.q;
+    b.addEventListener('click', () => openChat(item.q));
+    return b;
+  }
+
+  function addThreadBubble(animate) {
+    const item = THREAD[threadIdx % THREAD.length];
+    threadIdx++;
+    threadList.appendChild(makeBubble(item, animate));
+    while (threadList.children.length > MAX_BUBBLES) threadList.removeChild(threadList.firstElementChild);
+  }
+
+  for (let i = 0; i < MAX_BUBBLES; i++) addThreadBubble(false);
+  if (!reduceMotion) setInterval(() => { if (!document.hidden) addThreadBubble(true); }, 3200);
+
+  /* ---------- Rotating placeholder ---------- */
+  const mainInput = document.getElementById('mainInput');
+  let phIdx = 0;
+  if (!reduceMotion) {
+    setInterval(() => {
+      if (document.activeElement === mainInput || mainInput.value) return;
+      phIdx = (phIdx + 1) % PLACEHOLDERS.length;
+      mainInput.placeholder = PLACEHOLDERS[phIdx];
+    }, 2800);
+  }
+
+  /* ---------- Chat ---------- */
+  const chatOverlay = document.getElementById('chatOverlay');
+  const chatMessages = document.getElementById('chatMessages');
+  const chatScroll = document.getElementById('chatScroll');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+  const mainSend = document.getElementById('mainSend');
+  const typingIndicator = document.getElementById('typingIndicator');
+
+  let conversationHistory = [];
+
+  function scrollToBottom() { chatScroll.scrollTop = chatScroll.scrollHeight; }
+
+  function openChat(prefill) {
+    chatOverlay.classList.add('open');
+    chatMessages.innerHTML = '';
+    conversationHistory = [];
+    document.body.style.overflow = 'hidden';
+
+    addMessage('bot', 'Halo! Gue NanyaDong, teman lokal lu di Jabodetabek. Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
+
+    if (prefill) setTimeout(() => sendMessage(prefill), 400);
+    else chatInput.focus();
+  }
+
+  function closeChat() {
+    chatOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && chatOverlay.classList.contains('open')) closeChat();
+  });
+
+  function addMessage(type, text) {
+    const div = document.createElement('div');
+    div.className = type === 'bot' ? 'msg msg-bot' : 'msg msg-user';
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    scrollToBottom();
+  }
+
+  async function sendMessage(text) {
+    if (!text.trim()) return;
+    addMessage('user', text);
+    chatInput.value = '';
+    conversationHistory.push({ role: 'user', content: text });
+
+    typingIndicator.classList.add('show');
+    scrollToBottom();
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: conversationHistory, city: 'Jabodetabek' })
+      });
+      const data = await res.json();
+      const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
+      conversationHistory.push({ role: 'assistant', content: reply });
+      typingIndicator.classList.remove('show');
+      addMessage('bot', reply);
+    } catch (err) {
+      typingIndicator.classList.remove('show');
+      addMessage('bot', 'Waduh, koneksinya lagi bermasalah. Coba lagi nanti ya!');
+    }
+  }
+
+  function submitMain() {
+    const val = mainInput.value.trim();
+    if (val) { openChat(val); mainInput.value = ''; }
+    else openChat();
+  }
+  mainSend.addEventListener('click', submitMain);
+  mainInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitMain(); });
+
+  chatSend.addEventListener('click', () => sendMessage(chatInput.value));
+  chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(chatInput.value); });
+</script>
+
+</body>
+</html>
