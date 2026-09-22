@@ -336,6 +336,22 @@
     background: var(--pandan); color: #fff; align-self: flex-end;
     border-bottom-right-radius: 4px;
   }
+  .sources {
+    margin-top: 10px; padding-top: 9px;
+    border-top: 1px dashed var(--line);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    font-size: 12px; white-space: normal;
+  }
+  .sources-label { color: var(--ink-3); font-weight: 600; margin-right: 2px; }
+  .source-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    max-width: 220px;
+    background: var(--wash); border: 1px solid var(--line);
+    border-radius: 999px; padding: 3px 10px;
+    color: var(--pandan-dark); font-weight: 600; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .source-chip:hover { border-color: var(--pandan); background: var(--serba-tint); }
   .msg-typing {
     align-self: flex-start; background: #fff; border: 1px solid var(--line);
     padding: 12px 18px; border-radius: 18px; border-bottom-left-radius: 4px;
@@ -647,7 +663,8 @@
     conversationHistory = [];
     document.body.style.overflow = 'hidden';
 
-        addMessage('bot', 'Halo! NanyaDong.com, teman lokal lu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
+    addMessage('bot', 'Halo! NanyaDong.com, teman lokal lu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
+
     if (prefill) setTimeout(() => sendMessage(prefill), 400);
     else chatInput.focus();
   }
@@ -661,10 +678,32 @@
     if (e.key === 'Escape' && chatOverlay.classList.contains('open')) closeChat();
   });
 
-  function addMessage(type, text) {
+  function addMessage(type, text, sources) {
     const div = document.createElement('div');
     div.className = type === 'bot' ? 'msg msg-bot' : 'msg msg-user';
     div.textContent = text;
+
+    if (type === 'bot' && Array.isArray(sources) && sources.length) {
+      const box = document.createElement('div');
+      box.className = 'sources';
+      const label = document.createElement('span');
+      label.className = 'sources-label';
+      label.textContent = 'Sumber:';
+      box.appendChild(label);
+      sources.forEach(src => {
+        if (!src || !/^https?:\/\//.test(src.url)) return;
+        const a = document.createElement('a');
+        a.className = 'source-chip';
+        a.href = src.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.title = src.title || src.url;
+        a.textContent = src.site || src.title || 'link';
+        box.appendChild(a);
+      });
+      div.appendChild(box);
+    }
+
     chatMessages.appendChild(div);
     scrollToBottom();
   }
@@ -688,7 +727,7 @@
       const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
       conversationHistory.push({ role: 'assistant', content: reply });
       typingIndicator.classList.remove('show');
-      addMessage('bot', reply);
+      addMessage('bot', reply, data.sources);
     } catch (err) {
       typingIndicator.classList.remove('show');
       addMessage('bot', 'Waduh, koneksinya lagi bermasalah. Coba lagi nanti ya!');
