@@ -339,6 +339,40 @@
     background: var(--pandan); color: #fff; align-self: flex-end;
     border-bottom-right-radius: 4px;
   }
+  .place-row {
+    display: flex; gap: 10px; overflow-x: auto;
+    margin: 12px -4px 0; padding: 2px 4px 6px;
+    scroll-snap-type: x mandatory; white-space: normal;
+  }
+  .place-card {
+    flex: 0 0 210px; scroll-snap-align: start;
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden; display: flex; flex-direction: column;
+    text-decoration: none; color: inherit;
+  }
+  .place-card:hover { border-color: var(--pandan); }
+  .place-photo {
+    position: relative; height: 128px; background: var(--serba-tint);
+    display: grid; place-items: center; font-size: 34px;
+  }
+  .place-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .place-status {
+    position: absolute; top: 8px; left: 8px;
+    font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+    background: #fff; color: var(--ink);
+  }
+  .place-status.open { color: var(--pandan-dark); }
+  .place-status.warn { background: var(--kunyit); color: var(--ink); }
+  .place-status.closed { background: var(--sambal); color: #fff; }
+  .place-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .place-name { font-size: 14px; font-weight: 700; line-height: 1.3; }
+  .place-rating { font-size: 12px; font-weight: 700; color: var(--tempat); }
+  .place-rating span { color: var(--ink-3); font-weight: 500; }
+  .place-addr { font-size: 12px; color: var(--ink-2); line-height: 1.35; }
+  .place-maps { margin-top: auto; padding-top: 6px; font-size: 12px; font-weight: 700; color: var(--pandan); }
+  .place-credit { font-size: 10.5px; color: var(--ink-3); padding: 0 12px 8px; }
+  .place-credit a { color: inherit; }
+  .places-attrib { font-size: 11px; color: var(--ink-3); margin-top: 2px; white-space: normal; }
   .sources {
     margin-top: 10px; padding-top: 9px;
     border-top: 1px dashed var(--line);
@@ -666,7 +700,7 @@
     conversationHistory = [];
     document.body.style.overflow = 'hidden';
 
-    addMessage('bot', 'Halo! NanyaDong.com, teman lokal mu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
+    addMessage('bot', 'Halo! NanyaDong.com, teman lokal lu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
 
     if (prefill) setTimeout(() => sendMessage(prefill), 400);
     else chatInput.focus();
@@ -681,10 +715,121 @@
     if (e.key === 'Escape' && chatOverlay.classList.contains('open')) closeChat();
   });
 
-  function addMessage(type, text, sources) {
+  function formatCount(n) {
+    if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + 'rb';
+    return String(n);
+  }
+
+  function buildPlaceCards(places) {
+    const wrap = document.createElement('div');
+    const row = document.createElement('div');
+    row.className = 'place-row';
+
+    places.forEach(p => {
+      if (!p || !p.name) return;
+      const card = document.createElement('div');
+      card.className = 'place-card';
+
+      // Photo
+      const ph = document.createElement('div');
+      ph.className = 'place-photo';
+      if (p.photo && /^https:\/\//.test(p.photo.url)) {
+        const img = document.createElement('img');
+        img.src = p.photo.url;
+        img.alt = p.name;
+        img.loading = 'lazy';
+        img.referrerPolicy = 'no-referrer';
+        img.onerror = () => { img.remove(); ph.textContent = '📍'; };
+        ph.appendChild(img);
+      } else {
+        ph.textContent = '📍';
+      }
+
+      // Status badge
+      let badge = null;
+      if (p.status === 'CLOSED_PERMANENTLY') badge = ['Tutup permanen', 'closed'];
+      else if (p.status === 'CLOSED_TEMPORARILY') badge = ['Tutup sementara', 'warn'];
+      else if (p.openNow === true) badge = ['Buka sekarang', 'open'];
+      else if (p.openNow === false) badge = ['Lagi tutup', 'warn'];
+      if (badge) {
+        const b = document.createElement('span');
+        b.className = 'place-status ' + badge[1];
+        b.textContent = badge[0];
+        ph.appendChild(b);
+      }
+      card.appendChild(ph);
+
+      // Body
+      const body = document.createElement('div');
+      body.className = 'place-body';
+      const name = document.createElement('div');
+      name.className = 'place-name';
+      name.textContent = p.name;
+      body.appendChild(name);
+
+      if (typeof p.rating === 'number') {
+        const r = document.createElement('div');
+        r.className = 'place-rating';
+        r.textContent = '★ ' + p.rating.toFixed(1).replace('.', ',') + ' ';
+        if (typeof p.ratingCount === 'number') {
+          const c = document.createElement('span');
+          c.textContent = '(' + formatCount(p.ratingCount) + ' ulasan)';
+          r.appendChild(c);
+        }
+        body.appendChild(r);
+      }
+      if (p.address) {
+        const a = document.createElement('div');
+        a.className = 'place-addr';
+        a.textContent = p.address;
+        body.appendChild(a);
+      }
+      if (p.mapsUrl && /^https:\/\//.test(p.mapsUrl)) {
+        const m = document.createElement('a');
+        m.className = 'place-maps';
+        m.href = p.mapsUrl; m.target = '_blank'; m.rel = 'noopener noreferrer';
+        m.textContent = 'Buka di Google Maps';
+        body.appendChild(m);
+      }
+      card.appendChild(body);
+
+      // Photo credit (required by Google)
+      if (p.photo && p.photo.author) {
+        const cr = document.createElement('div');
+        cr.className = 'place-credit';
+        cr.append('Foto: ');
+        if (p.photo.authorUrl && /^https:\/\//.test(p.photo.authorUrl)) {
+          const al = document.createElement('a');
+          al.href = p.photo.authorUrl; al.target = '_blank'; al.rel = 'noopener noreferrer';
+          al.textContent = p.photo.author;
+          cr.appendChild(al);
+        } else {
+          cr.append(p.photo.author);
+        }
+        card.appendChild(cr);
+      }
+
+      row.appendChild(card);
+    });
+
+    if (!row.children.length) return null;
+    wrap.appendChild(row);
+    const attrib = document.createElement('div');
+    attrib.className = 'places-attrib';
+    attrib.textContent = 'Info & foto tempat dari Google Maps';
+    wrap.appendChild(attrib);
+    return wrap;
+  }
+
+  function addMessage(type, text, sources, places) {
     const div = document.createElement('div');
     div.className = type === 'bot' ? 'msg msg-bot' : 'msg msg-user';
     div.textContent = text;
+
+    if (type === 'bot' && Array.isArray(places) && places.length) {
+      const cards = buildPlaceCards(places);
+      if (cards) div.appendChild(cards);
+    }
 
     if (type === 'bot' && Array.isArray(sources) && sources.length) {
       const box = document.createElement('div');
@@ -730,7 +875,7 @@
       const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
       conversationHistory.push({ role: 'assistant', content: reply });
       typingIndicator.classList.remove('show');
-      addMessage('bot', reply, data.sources);
+      addMessage('bot', reply, data.sources, data.places);
     } catch (err) {
       typingIndicator.classList.remove('show');
       addMessage('bot', 'Waduh, koneksinya lagi bermasalah. Coba lagi nanti ya!');
