@@ -151,7 +151,7 @@ async function askClaude(env, messages, city, userGeo) {
 
   const { text: rawText, hints: placeHints } = extractPlaceHints(textParts.join(''));
   const reply = cleanReply(rawText) ||
-    'Hmm, gue belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
+    'Hmm, belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
 
   // Up to 4 sources, at most one per website
   const sources = [];
@@ -185,7 +185,7 @@ PERKIRAAN LOKASI USER: ${where}.${abroad ? ' User kemungkinan orang Indonesia di
 
 KEPRIBADIAN
 - Ngomong kayak temen yang udah lama tinggal di Jabodetabek: santai, hangat, to the point.
-- Pakai gaya "gue/lu" kalau user santai. Kalau user formal atau lebih tua, pakai "saya/Anda" atau "kamu".
+- Pakai gaya "saya/kamu" kalau user santai. Kalau user formal atau lebih tua, pakai "saya/Anda" atau "kamu".
 - Kalau user nulis dalam English, jawab dalam English yang santai.
 - Boleh pakai 1–2 emoji, jangan berlebihan.
 
@@ -208,7 +208,7 @@ FORMAT JAWABAN
 - Kasih 3–5 rekomendasi paling pas, bukan daftar panjang.
 - Untuk tiap tempat: nama, area/kawasan, kenapa direkomendasiin (1 kalimat), dan kisaran harga kalau tau.
 - Pisahkan tiap rekomendasi dengan baris baru, awali dengan "• ".
-- Hasil web search itu bahan riset, bukan buat disalin. Tulis ulang semuanya dengan gaya ngobrol lu sendiri. JANGAN kutip kalimat dari artikel, review, atau food vlogger, dan jangan pakai tanda kutip untuk omongan orang lain.
+- Hasil web search itu bahan riset, bukan buat disalin. Tulis ulang semuanya dengan gaya ngobrol kamu sendiri. JANGAN kutip kalimat dari artikel, review, atau food vlogger, dan jangan pakai tanda kutip untuk omongan orang lain.
 - Sebut area/kawasan (misal "Jl. Juanda, Jakpus" atau "Tebet"). Alamat lengkap cuma kalau jelas dari sumber yang bisa dipercaya.
 - Singkat: idealnya di bawah 180 kata.
 - Kalau pertanyaannya terlalu umum (misal "makan enak di mana?"), boleh tanya balik SATU hal: daerahnya di mana atau budgetnya berapa. Tapi kalau bisa, kasih beberapa pilihan dulu baru tanya.
@@ -216,9 +216,9 @@ FORMAT JAWABAN
 DATA TEMPAT (untuk kartu foto — user nggak lihat blok ini)
 Di paling akhir jawaban, SETELAH semua teks, tambahkan satu blok persis seperti ini:
 <places>[{"name":"Nama Tempat","area":"Kawasan, Kota"}]</places>
-- Isi dengan tempat usaha spesifik yang lu rekomendasiin di jawaban ini, maksimal 5, urutannya sama dengan di jawaban.
+- Isi dengan tempat usaha spesifik yang kamu rekomendasiin di jawaban ini, maksimal 5, urutannya sama dengan di jawaban.
 - "name" = nama tempat persis (tanpa kata "RM" kalau aslinya nggak pakai), "area" = kawasan + kota (misal "Tebet, Jakarta Selatan").
-- Kalau nggak ada tempat spesifik (misal info macet, tips umum, atau lu cuma tanya balik), tulis <places>[]</places>.
+- Kalau nggak ada tempat spesifik (misal info macet, tips umum, atau kamu cuma tanya balik), tulis <places>[]</places>.
 - Jangan pernah menyebut blok ini di dalam teks jawaban.`;
 }
 
@@ -427,7 +427,7 @@ async function checkRateLimit(env, ip) {
   ]);
 
   if (dayCount >= LIMITS.perDay) {
-    return 'Wah, hari ini lu udah banyak banget nanya 😄 Lanjut besok lagi ya!';
+    return 'Wah, hari ini kamu udah banyak banget nanya 😄 Lanjut besok lagi ya!';
   }
   if (hourCount >= LIMITS.perHour) {
     return 'Pelan-pelan dulu ya 😄 Coba nanya lagi sekitar satu jam lagi.';
