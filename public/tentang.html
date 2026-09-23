@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tentang NanyaDong — Teman Lokal yang Tau Segalanya</title>
+<meta name="description" content="Cerita di balik NanyaDong: kenapa dibuat, arti huruf N di logonya, dan cara kerja jawabannya.">
+<meta name="theme-color" content="#043B2E">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --pandan: #0D8A6A; --pandan-dark: #06513F; --pandan-deep: #043B2E;
+    --kunyit: #F5B820; --sambal: #E0402A;
+    --ink: #1A1918; --ink-2: #4A4946; --ink-3: #8A8984;
+    --line: #E6E4DF; --wash: #F7F6F3; --tint: #E2F4EE;
+  }
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #fff; color: var(--ink); line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--pandan-dark); }
+  :focus-visible { outline: 3px solid var(--kunyit); outline-offset: 2px; border-radius: 6px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+
+  .header { background: var(--pandan-deep); padding-top: env(safe-area-inset-top, 0px); position: sticky; top: 0; z-index: 10; }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .logo { display: flex; align-items: center; gap: 2px; text-decoration: none; }
+  .logo-text { font-size: 21px; font-weight: 800; color: #fff; letter-spacing: -0.6px; }
+  .logo-dot { width: 7px; height: 7px; background: var(--kunyit); border-radius: 50%; display: inline-block; margin-left: 2px; position: relative; top: 5px; }
+  .ask-btn {
+    background: var(--sambal); color: #fff; text-decoration: none;
+    font-size: 14px; font-weight: 700; padding: 8px 16px; border-radius: 999px;
+  }
+  .ask-btn:hover { background: #C4331F; }
+
+  .hero {
+    position: relative; background: var(--pandan-dark); color: #fff;
+    background-image:
+      radial-gradient(ellipse 9px 14px at 50% 0%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 9px 14px at 50% 100%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 14px 9px at 0% 50%, rgba(255,255,255,0.035) 98%, transparent 100%),
+      radial-gradient(ellipse 14px 9px at 100% 50%, rgba(255,255,255,0.035) 98%, transparent 100%);
+    background-size: 44px 44px;
+  }
+  .hero::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+    background: linear-gradient(90deg, var(--sambal) 0 33%, var(--kunyit) 33% 66%, var(--pandan) 66% 100%);
+  }
+  .hero-inner { padding: 56px 20px 64px; max-width: 760px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--kunyit); margin-bottom: 14px; }
+  .eyebrow::before { content: ""; width: 22px; height: 3px; border-radius: 2px; background: var(--kunyit); }
+  .hero h1 { font-size: clamp(32px, 5vw, 54px); font-weight: 800; line-height: 1.05; letter-spacing: -0.035em; }
+
+  .content { max-width: 720px; padding: 44px 20px 24px; }
+  .content h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; margin: 40px 0 12px; }
+  .content h2:first-child { margin-top: 0; }
+  .content p { font-size: 17px; color: var(--ink-2); margin-bottom: 16px; }
+  .content strong { color: var(--ink); }
+
+  .n-card {
+    display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center;
+    background: var(--tint); border-radius: 20px; padding: 24px; margin: 8px 0 16px;
+  }
+  .n-card img { width: 88px; height: 88px; border-radius: 22px; display: block; }
+  .n-card p { margin: 0; color: var(--ink); }
+
+  .note {
+    border-left: 5px solid var(--kunyit); background: #FFF6DB;
+    border-radius: 12px; padding: 16px 18px; margin: 8px 0 16px;
+  }
+  .note p { margin: 0; font-size: 16px; color: var(--ink); }
+
+  .sign { font-weight: 700; color: var(--ink); margin-top: 24px; }
+  .cta { margin: 32px 0 8px; }
+  .cta a {
+    display: inline-block; background: var(--sambal); color: #fff; text-decoration: none;
+    font-weight: 700; font-size: 16px; padding: 14px 24px; border-radius: 14px;
+  }
+  .cta a:hover { background: #C4331F; }
+
+  .footer { margin-top: 48px; background: var(--wash); border-top: 1px solid var(--line); padding: 28px 0 calc(32px + env(safe-area-inset-bottom, 0px)); font-size: 13px; color: var(--ink-3); }
+  .footer-inner { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+  .footer strong { color: var(--pandan); font-weight: 800; }
+  .footer a { text-decoration: none; font-weight: 700; }
+
+  @media (max-width: 480px) {
+    .n-card { grid-template-columns: 1fr; text-align: left; }
+    .n-card img { width: 72px; height: 72px; border-radius: 18px; }
+    .content p { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="wrap header-inner">
+    <a class="logo" href="/" aria-label="NanyaDong beranda"><span class="logo-text">NanyaDong</span><span class="logo-dot"></span></a>
+    <a class="ask-btn" href="/">Mulai nanya</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-inner">
+        <p class="eyebrow">Tentang NanyaDong</p>
+        <h1>Setiap orang butuh teman lokal.</h1>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <article class="content">
+
+      <h2>Kenapa NanyaDong ada</h2>
+      <p>Saya Donny Agustinus. Saya lahir dan besar di Padang, lalu kuliah Teknik Mesin di Universitas Indonesia dan tinggal di Jakarta dari 1985 sampai 1991. Setelah itu, pekerjaan sebagai insinyur perpipaan di industri minyak dan gas membawa saya ke Singapura, Uni Emirat Arab, Arab Saudi, dan sekarang London.</p>
+      <p>Di mana pun tinggal, pertanyaannya selalu sama. Makan enak yang rasanya jujur di mana? Tukang urut yang bisa dipercaya siapa? Kos yang aman dan terjangkau di daerah mana? Jawaban terbaik jarang datang dari iklan atau daftar "top 10". Biasanya datang dari <strong>teman yang sudah lama tinggal di situ</strong>.</p>
+      <p>NanyaDong dibuat supaya semua orang punya teman seperti itu. Kami mulai dari Jabodetabek, kota yang dulu jadi rumah kedua saya.</p>
+
+      <h2>Arti huruf N</h2>
+      <div class="n-card">
+        <img src="/icons/icon-192.png" alt="Logo huruf N NanyaDong">
+        <p>Huruf <strong>N</strong> di logo NanyaDong adalah huruf depan nama ketiga anak saya. Mereka semua berawalan N.</p>
+      </div>
+      <p>Ini bukan pertama kalinya keluarga masuk ke nama usaha saya. Tahun 2004, perusahaan pertama saya di Inggris bernama <strong>Entry Augustino</strong>. Nama "Entry" dipilih istri saya: kalau dibaca cepat, bunyinya seperti <em>"N-three"</em>, alias tiga N. Dua puluh tahun kemudian, tiga N itu masih jadi alasan saya membangun sesuatu.</p>
+
+      <h2>Cara kerja jawabannya</h2>
+      <p>Jawaban NanyaDong disusun oleh AI (Claude, buatan Anthropic). Sebelum menjawab, AI mencari informasi terbaru di internet, lalu setiap tempat yang direkomendasikan dicek ke Google Maps untuk foto, rating, dan status buka atau tutupnya. Sumber yang dipakai ditampilkan di bawah setiap jawaban, jadi kamu bisa cek sendiri.</p>
+      <div class="note">
+        <p><strong>Jujur aja:</strong> AI bisa salah. Tempat bisa tutup, pindah, atau ganti harga. Selalu cek ulang sebelum berangkat jauh-jauh. Kalau nemu jawaban yang keliru, kasih tau kami supaya NanyaDong makin akurat.</p>
+      </div>
+
+      <h2>Soal privasi</h2>
+      <p>Pertanyaan kamu dikirim ke AI supaya bisa dijawab, tapi NanyaDong tidak menyimpan riwayat percakapan di server kami. Riwayat chat hanya tersimpan di perangkat kamu sendiri, dan bisa dihapus kapan saja dengan tombol <strong>＋ Chat baru</strong>.</p>
+
+      <p class="sign">Selamat nanya!<br>Donny Agustinus, London</p>
+
+      <div class="cta"><a href="/">Mulai nanya sekarang →</a></div>
+    </article>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <p><strong>NanyaDong</strong> — Teman lokal yang tau segalanya</p>
+    <p><a href="/">Beranda</a> · &copy; 2026 nanyadong.com</p>
+  </div>
+</footer>
+
+</body>
+</html>
