@@ -319,6 +319,21 @@
     font-size: 14px; font-weight: 600; padding: 6px 0;
   }
   .chat-back svg { width: 18px; height: 18px; }
+  .chat-new {
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);
+    color: #fff; border-radius: 999px; padding: 6px 12px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .chat-new:hover { background: rgba(255,255,255,0.2); }
+  .resume-btn {
+    display: none; margin-top: 12px;
+    background: var(--kunyit); color: var(--ink); border: none;
+    border-radius: 999px; padding: 8px 16px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .resume-btn.show { display: inline-flex; align-items: center; gap: 6px; }
+  .resume-btn:hover { filter: brightness(1.05); }
+  @media (max-width: 480px) { .chat-header .logo { display: none; } }
   .chat-messages {
     flex: 1; overflow-y: auto;
     padding: 20px 16px;
@@ -475,6 +490,7 @@
             </button>
           </div>
           <p class="chat-hint">Bahasa Indonesia atau English, dua-duanya bisa.</p>
+          <button class="resume-btn" id="resumeBtn" type="button" onclick="openChat()">💬 Lanjutkan chat terakhir</button>
         </div>
       </div>
 
@@ -556,6 +572,7 @@
         Kembali
       </button>
       <span class="logo"><span class="logo-text" style="font-size:17px">NanyaDong</span><span class="logo-dot"></span></span>
+      <button class="chat-new" type="button" onclick="newChat()">＋ Chat baru</button>
     </div>
   </div>
   <div class="chat-messages" id="chatScroll">
@@ -690,25 +707,83 @@
   const mainSend = document.getElementById('mainSend');
   const typingIndicator = document.getElementById('typingIndicator');
 
-  let conversationHistory = [];
+  const GREETING = 'Halo! NanyaDong.com, teman lokal lu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊';
+  const STORE_KEY = 'nanyadong-chat-v1';
+  const resumeBtn = document.getElementById('resumeBtn');
+
+  let conversationHistory = []; // sent to the API
+  let chatLog = [];             // what the user sees (incl. cards & sources)
+  let rendered = false;
+  let sending = false;
+
+  // ---- Keep the chat on this device (survives closing the chat or the browser)
+  function saveChat() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        history: conversationHistory.slice(-24),
+        log: chatLog.slice(-40)
+      }));
+    } catch (e) { /* storage full or blocked: chat still works */ }
+    updateResume();
+  }
+  function loadChat() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+      if (saved && Array.isArray(saved.history) && Array.isArray(saved.log)) {
+        conversationHistory = saved.history;
+        chatLog = saved.log;
+      }
+    } catch (e) { conversationHistory = []; chatLog = []; }
+    updateResume();
+  }
+  function updateResume() {
+    resumeBtn.classList.toggle('show', chatLog.length > 0);
+  }
+
+  function renderChat() {
+    chatMessages.innerHTML = '';
+    addMessage('bot', GREETING, null, null, false);
+    chatLog.forEach(m => addMessage(m.type, m.text, m.sources, m.places, false));
+    rendered = true;
+  }
 
   function scrollToBottom() { chatScroll.scrollTop = chatScroll.scrollHeight; }
 
   function openChat(prefill) {
-    chatOverlay.classList.add('open');
-    chatMessages.innerHTML = '';
-    conversationHistory = [];
-    document.body.style.overflow = 'hidden';
+    if (!chatOverlay.classList.contains('open')) {
+      chatOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      // Phone back button closes the chat instead of leaving the site
+      try { history.pushState({ nanyaChat: true }, ''); } catch (e) {}
+    }
+    if (!rendered) renderChat();
+    scrollToBottom();
 
-    addMessage('bot', 'Halo! NanyaDong.com, teman lokal Mu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊');
-
-    if (prefill) setTimeout(() => sendMessage(prefill), 400);
+    if (prefill) setTimeout(() => sendMessage(prefill), 300);
     else chatInput.focus();
   }
 
-  function closeChat() {
+  function hideChat() {
     chatOverlay.classList.remove('open');
     document.body.style.overflow = '';
+  }
+
+  function closeChat() {
+    if (history.state && history.state.nanyaChat) history.back(); // triggers popstate → hideChat
+    else hideChat();
+  }
+
+  window.addEventListener('popstate', () => {
+    if (chatOverlay.classList.contains('open')) hideChat();
+  });
+
+  function newChat() {
+    if (sending) return;
+    conversationHistory = [];
+    chatLog = [];
+    saveChat();
+    renderChat();
+    chatInput.focus();
   }
 
   document.addEventListener('keydown', (e) => {
@@ -821,7 +896,11 @@
     return wrap;
   }
 
-  function addMessage(type, text, sources, places) {
+  function addMessage(type, text, sources, places, persist) {
+    if (persist) {
+      chatLog.push({ type, text, sources: sources || null, places: places || null });
+      saveChat();
+    }
     const div = document.createElement('div');
     div.className = type === 'bot' ? 'msg msg-bot' : 'msg msg-user';
     div.textContent = text;
@@ -857,8 +936,9 @@
   }
 
   async function sendMessage(text) {
-    if (!text.trim()) return;
-    addMessage('user', text);
+    if (!text.trim() || sending) return;
+    sending = true;
+    addMessage('user', text, null, null, true);
     chatInput.value = '';
     conversationHistory.push({ role: 'user', content: text });
 
@@ -873,14 +953,26 @@
       });
       const data = await res.json();
       const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
-      conversationHistory.push({ role: 'assistant', content: reply });
       typingIndicator.classList.remove('show');
-      addMessage('bot', reply, data.sources, data.places);
+      if (res.ok && data.reply) {
+        conversationHistory.push({ role: 'assistant', content: reply });
+        addMessage('bot', reply, data.sources, data.places, true);
+      } else {
+        conversationHistory.pop(); // don't keep a question that got no answer
+        saveChat();
+        addMessage('bot', reply, null, null, false);
+      }
     } catch (err) {
       typingIndicator.classList.remove('show');
-      addMessage('bot', 'Waduh, koneksinya lagi bermasalah. Coba lagi nanti ya!');
+      conversationHistory.pop();
+      saveChat();
+      addMessage('bot', 'Waduh, koneksinya lagi bermasalah. Coba lagi nanti ya!', null, null, false);
+    } finally {
+      sending = false;
     }
   }
+
+  loadChat();
 
   function submitMain() {
     const val = mainInput.value.trim();
