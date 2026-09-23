@@ -18,9 +18,9 @@
 
   // Rate limiting: create a KV namespace in the dashboard, paste its ID below,
   // then remove the // at the start of the next four lines.
-  // "kv_namespaces": [
-  //   { "binding": "RATE_LIMIT", "id": "PASTE_KV_NAMESPACE_ID_HERE" }
-  // ],
+   "kv_namespaces": [
+     { "binding": "RATE_LIMIT", "id": "b7a5ba883629415699664a8f34af9f24" }
+   ],
 
   "observability": { "enabled": true }
 }
