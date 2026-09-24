@@ -364,6 +364,24 @@
     margin: 12px -4px 0; padding: 2px 4px 6px;
     scroll-snap-type: x mandatory; white-space: normal;
   }
+  /* Arrow buttons for the card row (desktop / mouse only) */
+  .place-scroller { position: relative; }
+  .place-nav {
+    display: none; position: absolute; top: 78px; transform: translateY(-50%); z-index: 2;
+    width: 36px; height: 36px; border-radius: 50%; padding: 0;
+    border: 1px solid var(--line); background: #fff; color: var(--pandan-dark);
+    box-shadow: 0 2px 10px rgba(26, 25, 24, .16);
+    font: 700 20px/1 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer;
+    transition: background-color .15s, color .15s, border-color .15s;
+  }
+  .place-nav.prev { left: -8px; }
+  .place-nav.next { right: -8px; }
+  .place-nav:hover { background: var(--pandan); border-color: var(--pandan); color: #fff; }
+  .place-nav:focus-visible { outline: 2px solid var(--pandan); outline-offset: 2px; }
+  @media (hover: hover) and (pointer: fine) {
+    .place-scroller.can-prev .place-nav.prev,
+    .place-scroller.can-next .place-nav.next { display: grid; place-items: center; }
+  }
   .place-card {
     flex: 0 0 210px; scroll-snap-align: start;
     background: #fff; border: 1px solid var(--line); border-radius: 14px;
@@ -897,7 +915,34 @@
     });
 
     if (!row.children.length) return null;
-    wrap.appendChild(row);
+
+    // Scroller with left/right arrows (shown only on desktop, only when there is more to see)
+    const scroller = document.createElement('div');
+    scroller.className = 'place-scroller';
+    const mkBtn = (dir, label, symbol) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'place-nav ' + dir;
+      b.setAttribute('aria-label', label);
+      b.textContent = symbol;
+      b.addEventListener('click', () => {
+        const step = Math.max(row.clientWidth * 0.8, 220);
+        row.scrollBy({ left: dir === 'next' ? step : -step, behavior: 'smooth' });
+      });
+      return b;
+    };
+    const prevBtn = mkBtn('prev', 'Tempat sebelumnya', '‹');
+    const nextBtn = mkBtn('next', 'Tempat berikutnya', '›');
+    const updateNav = () => {
+      scroller.classList.toggle('can-prev', row.scrollLeft > 4);
+      scroller.classList.toggle('can-next', row.scrollLeft + row.clientWidth < row.scrollWidth - 4);
+    };
+    row.addEventListener('scroll', updateNav, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(updateNav).observe(row);
+    requestAnimationFrame(updateNav);
+
+    scroller.append(prevBtn, row, nextBtn);
+    wrap.appendChild(scroller);
     const attrib = document.createElement('div');
     attrib.className = 'places-attrib';
     attrib.textContent = 'Info & foto tempat dari Google Maps';
