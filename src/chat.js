@@ -73,6 +73,7 @@ export async function handleChat(request, env) {
 
     // 5. Call Claude
     const { reply, sources, placeHints } = await askClaude(env, messages, city, userGeo);
+    console.log('places hints', JSON.stringify(placeHints));
     const places = await lookupPlaces(env, placeHints);
     return json({ reply, sources, places });
 
@@ -294,7 +295,7 @@ async function lookupOne(env, hint) {
       textQuery: [hint.name, hint.area].filter(Boolean).join(', '),
       languageCode: 'id',
       regionCode: 'ID',
-      maxResultCount: 1,
+      maxResultCount: 3,
       // Bias towards Jabodetabek (centre of Jakarta, 50 km radius)
       locationBias: {
         circle: { center: { latitude: -6.2, longitude: 106.83 }, radius: 50000 }
@@ -306,12 +307,20 @@ async function lookupOne(env, hint) {
     console.error('Places API', res.status, (await res.text()).slice(0, 300));
     return null;
   }
-  const data = await res.json();
-  const p = data.places && data.places[0];
-  if (!p) return null;
+    const data = await res.json();
+  const candidates = Array.isArray(data.places) ? data.places : [];
+  // Take the first candidate whose name actually matches what Claude recommended
+  const p = candidates.find(c => namesMatch(hint.name, (c.displayName && c.displayName.text) || ''));
+  if (!p) {
+    console.log('places: no match', JSON.stringify({
+      wanted: hint.name,
+      area: hint.area,
+      got: candidates.map(c => c.displayName && c.displayName.text)
+    }));
+    return null;
+  }
 
   const foundName = (p.displayName && p.displayName.text) || '';
-  if (!namesMatch(hint.name, foundName)) return null; // Google found something else
 
   let photo = null;
   const ph = Array.isArray(p.photos) ? p.photos[0] : null;
