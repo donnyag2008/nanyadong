@@ -397,6 +397,11 @@ async function lookupOne(env, hint) {
     return null;
   }
 
+  return buildCard(env, p, hint.area);
+}
+
+// Turn a Places API (New) place object into the card the browser renders
+async function buildCard(env, p, fallbackAddress) {
   const foundName = (p.displayName && p.displayName.text) || '';
 
   let photo = null;
@@ -416,7 +421,7 @@ async function lookupOne(env, hint) {
   return {
     id: p.id,
     name: foundName,
-    address: p.shortFormattedAddress || p.formattedAddress || hint.area,
+    address: p.shortFormattedAddress || p.formattedAddress || fallbackAddress || '',
     rating: typeof p.rating === 'number' ? p.rating : null,
     ratingCount: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
     mapsUrl: p.googleMapsUri || null,
@@ -424,6 +429,67 @@ async function lookupOne(env, hint) {
     openNow: p.currentOpeningHours ? p.currentOpeningHours.openNow : null,
     photo
   };
+}
+
+// ---------------------------------------------------------------------------
+// /api/places — rebuild cards from place IDs when an old chat is reopened.
+// Google's terms only allow caching place_id, so the browser keeps IDs only
+// and fresh details are fetched on demand.
+
+const DETAILS_FIELDS = PLACES_FIELDS.split(',').map(f => f.replace(/^places\./, '')).join(',');
+const PLACE_ID_RE = /^[A-Za-z0-9_-]{10,300}$/;
+
+export async function handlePlaces(request, env) {
+  try {
+    const origin = request.headers.get('Origin') || '';
+    if (origin && !isAllowedOrigin(origin)) return json({ places: [] }, 403);
+    if (!env.GOOGLE_PLACES_KEY) return json({ places: [] });
+
+    let body;
+    try { body = await request.json(); } catch { return json({ places: [] }, 400); }
+    const ids = Array.isArray(body.ids)
+      ? [...new Set(body.ids.filter(id => typeof id === 'string' && PLACE_ID_RE.test(id)))].slice(0, 5)
+      : [];
+    if (!ids.length) return json({ places: [] });
+
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    if (await placesRateLimited(env, ip)) return json({ places: [] }, 429);
+
+    const results = await Promise.all(ids.map(id => detailsOne(env, id).catch(err => {
+      console.error('place details failed', id, String(err));
+      return null;
+    })));
+    return json({ places: results.filter(Boolean) });
+  } catch (err) {
+    console.error('places error:', err && err.stack ? err.stack : err);
+    return json({ places: [] }, 500);
+  }
+}
+
+async function detailsOne(env, id) {
+  const res = await fetchWithTimeout(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}?languageCode=id&regionCode=ID`, {
+    headers: {
+      'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY,
+      'X-Goog-FieldMask': DETAILS_FIELDS
+    }
+  }, 6000);
+  if (!res.ok) {
+    console.error('Place Details', res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
+  const p = await res.json();
+  if (!p || !p.id) return null;
+  return buildCard(env, p, '');
+}
+
+// Separate, generous budget so reopening old chats never eats the question quota
+async function placesRateLimited(env, ip) {
+  if (!env.RATE_LIMIT) return false;
+  const key = `rl:p:${ip}:${new Date().toISOString().slice(0, 13)}`;
+  const count = parseInt((await env.RATE_LIMIT.get(key)) || '0', 10);
+  if (count >= 40) return true;
+  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 3700 });
+  return false;
 }
 
 // Ask Google for a short-lived public photo URL, so the API key never reaches the browser
