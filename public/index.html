@@ -303,6 +303,8 @@
   }
   .footer-inner { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
   .footer strong { color: var(--pandan); font-weight: 800; }
+  .footer-links a { color: var(--pandan-dark); font-weight: 700; text-decoration: none; }
+  .footer-links a:hover { text-decoration: underline; }
 
   /* ---------- Chat overlay ---------- */
   .chat-overlay {
@@ -414,6 +416,14 @@
   .place-maps { margin-top: auto; padding-top: 6px; font-size: 12px; font-weight: 700; color: var(--pandan); }
   .place-credit { font-size: 10.5px; color: var(--ink-3); padding: 0 12px 8px; }
   .place-credit a { color: inherit; }
+  .places-restore {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+    font: 700 13px/1 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: var(--pandan-dark); background: var(--serba-tint);
+    border: 1px solid transparent; border-radius: 999px; padding: 9px 14px; cursor: pointer;
+  }
+  .places-restore:hover:not(:disabled) { border-color: var(--pandan); }
+  .places-restore:disabled { cursor: default; opacity: .75; }
   .places-attrib { font-size: 11px; color: var(--ink-3); margin-top: 2px; white-space: normal; }
   .sources {
     margin-top: 10px; padding-top: 9px;
@@ -586,7 +596,7 @@
 <footer class="footer">
   <div class="wrap footer-inner">
     <p><strong>NanyaDong</strong> — Teman lokal yang tau segalanya</p>
-    <p><a href="/tentang" style="color:var(--pandan-dark);font-weight:700;text-decoration:none">Tentang NanyaDong</a> · &copy; 2026 nanyadong.com</p>
+    <p class="footer-links"><a href="/tentang">Tentang NanyaDong</a> · <a href="/syarat">Syarat Penggunaan</a> · <a href="/privasi">Kebijakan Privasi</a> · &copy; 2026 nanyadong.com</p>
   </div>
 </footer>
 
@@ -758,7 +768,17 @@
       const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
       if (saved && Array.isArray(saved.history) && Array.isArray(saved.log)) {
         conversationHistory = saved.history;
-        chatLog = saved.log;
+        // Google only allows keeping place IDs: drop any stored card details
+        let migrated = false;
+        chatLog = saved.log.map(m => {
+          if (m && Array.isArray(m.places)) {
+            migrated = true;
+            const { places, ...rest } = m;
+            return { ...rest, placeIds: places.map(p => p && p.id).filter(Boolean) };
+          }
+          return m;
+        });
+        if (migrated) saveChat();
       }
     } catch (e) { conversationHistory = []; chatLog = []; }
     updateResume();
@@ -770,7 +790,7 @@
   function renderChat() {
     chatMessages.innerHTML = '';
     addMessage('bot', GREETING, null, null, false);
-    chatLog.forEach(m => addMessage(m.type, m.text, m.sources, m.places, false));
+    chatLog.forEach(m => addMessage(m.type, m.text, m.sources, null, false, m.placeIds));
     rendered = true;
   }
 
@@ -950,9 +970,40 @@
     return wrap;
   }
 
-  function addMessage(type, text, sources, places, persist) {
+  // Old chats keep only place IDs; this button fetches fresh cards when wanted
+  function buildRestoreButton(placeIds) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'places-restore';
+    const label = `📍 Tampilkan ${placeIds.length} tempat`;
+    btn.textContent = label;
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Memuat tempat…';
+      try {
+        const res = await fetch('/api/places', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: placeIds })
+        });
+        const data = await res.json();
+        const cards = Array.isArray(data.places) && data.places.length ? buildPlaceCards(data.places) : null;
+        if (cards) { btn.replaceWith(cards); return; }
+        btn.textContent = 'Info tempat belum bisa dimuat';
+      } catch (e) {
+        btn.textContent = 'Gagal memuat. Ketuk untuk coba lagi';
+        btn.disabled = false;
+        return;
+      }
+    });
+    return btn;
+  }
+
+  function addMessage(type, text, sources, places, persist, placeIds) {
     if (persist) {
-      chatLog.push({ type, text, sources: sources || null, places: places || null });
+      // Store only place IDs (allowed by Google); details are re-fetched on demand
+      const ids = Array.isArray(places) ? places.map(p => p && p.id).filter(Boolean) : [];
+      chatLog.push({ type, text, sources: sources || null, placeIds: ids.length ? ids : null });
       saveChat();
     }
     const div = document.createElement('div');
@@ -962,6 +1013,8 @@
     if (type === 'bot' && Array.isArray(places) && places.length) {
       const cards = buildPlaceCards(places);
       if (cards) div.appendChild(cards);
+    } else if (type === 'bot' && Array.isArray(placeIds) && placeIds.length) {
+      div.appendChild(buildRestoreButton(placeIds));
     }
 
     if (type === 'bot' && Array.isArray(sources) && sources.length) {
