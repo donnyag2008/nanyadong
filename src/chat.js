@@ -104,15 +104,17 @@ async function askClaude(env, messages, city, userGeo) {
         country: 'ID',
         timezone: 'Asia/Jakarta'
       }
-    }]
+    }, PLACE_CARDS_TOOL]
   };
 
   let convo = [...messages];
   let textParts = [];
+  let toolHints = null;          // from show_place_cards
   const sourceMap = new Map(); // url -> title
 
-  // Server-side tool loops can pause long turns; continue up to 2 times.
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Loop: web search can pause long turns (pause_turn), and the model may
+  // call show_place_cards before it has written its answer.
+  for (let attempt = 0; attempt < 4; attempt++) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -132,7 +134,14 @@ async function askClaude(env, messages, city, userGeo) {
     const data = await res.json();
     const content = Array.isArray(data.content) ? data.content : [];
 
+    const cardCalls = [];
     for (const block of content) {
+      if (block.type === 'tool_use' && block.name === 'show_place_cards') {
+        cardCalls.push(block);
+        const list = block.input && Array.isArray(block.input.places) ? block.input.places : [];
+        toolHints = (toolHints || []).concat(list);
+        continue;
+      }
       if (block.type === 'text' && block.text) {
         textParts.push(block.text);
         for (const c of block.citations || []) {
@@ -147,10 +156,29 @@ async function askClaude(env, messages, city, userGeo) {
       convo = [...convo, { role: 'assistant', content }];
       continue;
     }
+
+    if (data.stop_reason === 'tool_use' && cardCalls.length) {
+      // Normal case: the answer is already written, cards are the last step.
+      if (textParts.join('').trim().length >= 20) break;
+      // Model called the tool first: acknowledge and let it write the answer.
+      convo = [...convo,
+        { role: 'assistant', content },
+        { role: 'user', content: cardCalls.map(c => ({
+          type: 'tool_result', tool_use_id: c.id,
+          content: 'Kartu siap ditampilkan. Sekarang tulis jawabanmu untuk user.'
+        })) }
+      ];
+      continue;
+    }
     break;
   }
 
-  const { text: rawText, hints: placeHints } = extractPlaceHints(textParts.join(''));
+  const extracted = extractPlaceHints(textParts.join(''));
+  const rawText = extracted.text;
+  // Priority: tool call > legacy <places> block > bullet lines in the reply
+  let placeHints = normaliseHints(toolHints);
+  if (!placeHints.length) placeHints = extracted.hints;
+  if (!placeHints.length) placeHints = hintsFromBullets(rawText);
   const reply = cleanReply(rawText) ||
     'Hmm, belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
 
@@ -215,18 +243,61 @@ FORMAT JAWABAN
 - Singkat: idealnya di bawah 180 kata.
 - Kalau pertanyaannya terlalu umum (misal "makan enak di mana?"), boleh tanya balik SATU hal: daerahnya di mana atau budgetnya berapa. Tapi kalau bisa, kasih beberapa pilihan dulu baru tanya.
 
-DATA TEMPAT (untuk kartu foto — user nggak lihat blok ini)
-Di paling akhir jawaban, SETELAH semua teks, tambahkan satu blok persis seperti ini:
-<places>[{"name":"Nama Tempat","area":"Kawasan, Kota"}]</places>
-- Isi dengan tempat usaha spesifik yang kamu rekomendasiin di jawaban ini, maksimal 5, urutannya sama dengan di jawaban.
-- "name" = nama tempat persis (tanpa kata "RM" kalau aslinya nggak pakai), "area" = kawasan + kota (misal "Tebet, Jakarta Selatan").
-- Kalau nggak ada tempat spesifik (misal info macet, tips umum, atau kamu cuma tanya balik), tulis <places>[]</places>.
-- Jangan pernah menyebut blok ini di dalam teks jawaban.
+KARTU FOTO TEMPAT
+- Aplikasi NanyaDong menampilkan kartu foto (foto, rating, alamat, link Google Maps) di bawah jawabanmu lewat tool show_place_cards. Jadi JANGAN PERNAH bilang kamu nggak bisa nampilin foto atau chat ini cuma teks.
+- Setiap kali jawabanmu menyebut tempat usaha spesifik, WAJIB panggil show_place_cards SEKALI, SETELAH seluruh teks jawaban selesai ditulis. Isi maksimal 5 tempat, urutannya sama dengan di jawaban.
+- "name" = nama tempat persis, "area" = kawasan + kota (misal "Tebet, Jakarta Selatan").
+- Jangan panggil tool ini kalau nggak ada tempat spesifik (info macet, tips umum, atau kamu cuma tanya balik).
+- Kalau user minta foto suatu tempat, panggil show_place_cards dengan tempat itu.
+- Kalau user nanya kenapa satu tempat nggak ada kartunya, jelaskan bahwa tempat itu belum ketemu di Google Maps dengan nama yang sama. Sarankan cek langsung, dan kalau kamu sendiri nggak yakin tempat itu masih ada, bilang terus terang.
+- Jangan menyebut nama tool ini di dalam teks jawaban.`;
+}
 
-TENTANG FOTO
-- Aplikasi NanyaDong otomatis menampilkan kartu foto (foto, rating, alamat, link Google Maps) di bawah jawabanmu untuk setiap tempat di blok <places>. Jadi JANGAN PERNAH bilang kamu nggak bisa nampilin foto atau chat ini cuma teks.
-- Kalau user minta foto suatu tempat, masukkan tempat itu ke blok <places> supaya kartunya muncul.
-- Kalau user nanya kenapa satu tempat nggak ada kartunya, jelaskan bahwa tempat itu belum ketemu di Google Maps dengan nama yang sama. Sarankan cek langsung, dan kalau kamu sendiri nggak yakin tempat itu masih ada, bilang terus terang.`;
+const PLACE_CARDS_TOOL = {
+  name: 'show_place_cards',
+  description: 'Tampilkan kartu foto Google Maps untuk tempat usaha spesifik yang kamu rekomendasikan di jawaban. Panggil sekali, setelah seluruh teks jawaban selesai.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      places: {
+        type: 'array',
+        maxItems: 5,
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Nama tempat persis' },
+            area: { type: 'string', description: 'Kawasan + kota, misal "Tebet, Jakarta Selatan"' }
+          },
+          required: ['name', 'area']
+        }
+      }
+    },
+    required: ['places']
+  }
+};
+
+function normaliseHints(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter(p => p && typeof p.name === 'string' && p.name.trim())
+    .slice(0, 5)
+    .map(p => ({
+      name: p.name.trim().slice(0, 80),
+      area: typeof p.area === 'string' ? p.area.trim().slice(0, 80) : ''
+    }));
+}
+
+// Last-resort fallback: read "• Nama Tempat, Kawasan — alasan" lines from the reply
+function hintsFromBullets(text) {
+  const out = [];
+  const re = /^•\s*([^,\n]{2,60}),\s*([^—–\n(]{2,40})/gm;
+  let m;
+  while ((m = re.exec(text)) && out.length < 5) {
+    const name = m[1].trim();
+    if (/\s(di|yang|dekat|deket)\s/i.test(' ' + name + ' ')) continue; // generic, not a named place
+    out.push({ name, area: m[2].trim() });
+  }
+  return out;
 }
 
 // Pull the hidden <places>[...]</places> block out of the model's text
