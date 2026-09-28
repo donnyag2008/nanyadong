@@ -1,6 +1,5 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-
+const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_KEY;
 /* ========== CITY CONFIGURATIONS ========== */
 const CITY_PROMPTS = {
   jabodetabek: {
