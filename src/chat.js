@@ -5,7 +5,8 @@
  * Environment (Worker → Settings → Variables and Secrets):
  *   ANTHROPIC_API_KEY  (secret, required)
  *   MODEL              (optional, default below)
- *   GOOGLE_PLACES_KEY  (secret, optional — enables photo cards)
+ *   GOOGLE_PLACES_KEY  (secret, optional — enables photo cards and trip info)
+ *   GOOGLE_ROUTES_KEY  (secret, optional — falls back to GOOGLE_PLACES_KEY)
  *
  * Bindings (wrangler.jsonc → kv_namespaces):
  *   RATE_LIMIT         KV namespace (optional but strongly recommended)
@@ -13,6 +14,8 @@
  * Request:  POST { messages: [{role, content}], city: "Jabodetabek" }
  * Response: { reply, sources: [{ title, url, site }], places: [{ ...card }] }
  */
+
+import { TRIP_TOOL, runTripTool } from './trip.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-5';
 
@@ -22,7 +25,8 @@ const LIMITS = {
   maxMessages: 12,      // history turns sent to the model
   maxChars: 1000,       // max characters per user message
   maxSearches: 3,       // web searches per question (cost control)
-  maxTokens: 1200
+  maxTokens: 1500,
+  maxTripCalls: 2       // get_trip_info calls per question (cost control)
 };
 
 const ALLOWED_ORIGINS = [
@@ -68,7 +72,9 @@ export async function handleChat(request, env) {
     const userGeo = {
       city: cf.city || null,
       region: cf.region || null,
-      country: cf.country || null
+      country: cf.country || null,
+      latitude: cf.latitude || null,
+      longitude: cf.longitude || null
     };
 
     // 5. Call Claude
@@ -104,17 +110,18 @@ async function askClaude(env, messages, city, userGeo) {
         country: 'ID',
         timezone: 'Asia/Jakarta'
       }
-    }, PLACE_CARDS_TOOL]
+    }, PLACE_CARDS_TOOL, TRIP_TOOL]
   };
 
   let convo = [...messages];
   let textParts = [];
-  let toolHints = null;          // from show_place_cards
-  const sourceMap = new Map(); // url -> title
+  let toolHints = null;                    // from show_place_cards
+  let tripBudget = LIMITS.maxTripCalls;    // get_trip_info calls left
+  const sourceMap = new Map();             // url -> title
 
   // Loop: web search can pause long turns (pause_turn), and the model may
-  // call show_place_cards before it has written its answer.
-  for (let attempt = 0; attempt < 4; attempt++) {
+  // call get_trip_info / show_place_cards before it has written its answer.
+  for (let attempt = 0; attempt < 6; attempt++) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -135,11 +142,16 @@ async function askClaude(env, messages, city, userGeo) {
     const content = Array.isArray(data.content) ? data.content : [];
 
     const cardCalls = [];
+    const tripCalls = [];
     for (const block of content) {
       if (block.type === 'tool_use' && block.name === 'show_place_cards') {
         cardCalls.push(block);
         const list = block.input && Array.isArray(block.input.places) ? block.input.places : [];
         toolHints = (toolHints || []).concat(list);
+        continue;
+      }
+      if (block.type === 'tool_use' && block.name === 'get_trip_info') {
+        tripCalls.push(block);
         continue;
       }
       if (block.type === 'text' && block.text) {
@@ -157,17 +169,29 @@ async function askClaude(env, messages, city, userGeo) {
       continue;
     }
 
-    if (data.stop_reason === 'tool_use' && cardCalls.length) {
-      // Normal case: the answer is already written, cards are the last step.
-      if (textParts.join('').trim().length >= 20) break;
-      // Model called the tool first: acknowledge and let it write the answer.
-      convo = [...convo,
-        { role: 'assistant', content },
-        { role: 'user', content: cardCalls.map(c => ({
+    if (data.stop_reason === 'tool_use' && (cardCalls.length || tripCalls.length)) {
+      // Answer already written and only cards requested: done.
+      if (!tripCalls.length && textParts.join('').trim().length >= 20) break;
+
+      const results = [];
+      for (const c of tripCalls) {
+        let out;
+        if (tripBudget-- > 0) {
+          out = await runTripTool(env, c.input || {}, userGeo);
+        } else {
+          out = 'Batas cek rute per pertanyaan tercapai. Jawab dengan data yang sudah ada.';
+        }
+        results.push({ type: 'tool_result', tool_use_id: c.id, content: out });
+      }
+      for (const c of cardCalls) {
+        results.push({
           type: 'tool_result', tool_use_id: c.id,
           content: 'Kartu siap ditampilkan. Sekarang tulis jawabanmu untuk user.'
-        })) }
-      ];
+        });
+      }
+      // Drop any preamble written before the trip lookup; the final answer replaces it
+      if (tripCalls.length) textParts = [];
+      convo = [...convo, { role: 'assistant', content }, { role: 'user', content: results }];
       continue;
     }
     break;
@@ -242,6 +266,14 @@ FORMAT JAWABAN
 - Sebut area/kawasan (misal "Jl. Juanda, Jakpus" atau "Tebet"). Alamat lengkap cuma kalau jelas dari sumber yang bisa dipercaya.
 - Singkat: idealnya di bawah 180 kata.
 - Kalau pertanyaannya terlalu umum (misal "makan enak di mana?"), boleh tanya balik SATU hal: daerahnya di mana atau budgetnya berapa. Tapi kalau bisa, kasih beberapa pilihan dulu baru tanya.
+
+INFO PERJALANAN
+- Kalau user nanya soal menuju sebuah tempat (berapa lama, ongkos, naik apa, parkir, jam berangkat, biaya makan di sana), panggil get_trip_info SEBELUM menulis jawaban. Maksimal untuk 1-2 tempat.
+- Asal: pakai yang disebut user. Kalau tidak disebut, isi origin dengan "lokasi_saya". Kalau hasil tool bilang asal tidak diketahui, tanya SATU hal: berangkat dari mana?
+- Kalau user nanya jam terbaik atau menghindari macet, set compare_times=true.
+- Angka berlabel [DATA GOOGLE] boleh disebut apa adanya. Angka berlabel [PERKIRAAN] harus disebut sebagai "perkiraan". Tarif parkir per jam jangan dikarang: cari lewat web search atau bilang belum tahu.
+- Format: tiga baris perbandingan diawali "• " (mobil/motor pribadi, ojol, transportasi umum), lalu satu baris parkir dan harga makan, lalu satu saran singkat (mana yang paling masuk akal dan jam berangkat terbaik). Untuk pertanyaan perjalanan, batas kata boleh sampai 250.
+- Jangan menyebut nama tool ini di dalam teks jawaban.
 
 KARTU FOTO TEMPAT
 - Aplikasi NanyaDong menampilkan kartu foto (foto, rating, alamat, link Google Maps) di bawah jawabanmu lewat tool show_place_cards. Jadi JANGAN PERNAH bilang kamu nggak bisa nampilin foto atau chat ini cuma teks.
@@ -384,7 +416,7 @@ async function lookupOne(env, hint) {
     console.error('Places API', res.status, (await res.text()).slice(0, 300));
     return null;
   }
-    const data = await res.json();
+  const data = await res.json();
   const candidates = Array.isArray(data.places) ? data.places : [];
   // Take the first candidate whose name actually matches what Claude recommended
   const p = candidates.find(c => namesMatch(hint.name, (c.displayName && c.displayName.text) || ''));
