@@ -4,6 +4,8 @@
  * Uses env.GOOGLE_ROUTES_KEY, falling back to env.GOOGLE_PLACES_KEY.
  */
 
+import { pickBest } from './match.js';
+
 // ---- Numbers to review from time to time ----------------------------------
 const TARIFF_NOTE = `TARIF TRANSPORTASI UMUM (tetap, dicek awal 2026):
 - Transjakarta: Rp3.500 flat (Mikrotrans gratis)
@@ -28,7 +30,7 @@ export const TRIP_TOOL = {
     type: 'object',
     properties: {
       destination_name: { type: 'string', description: 'Nama tempat tujuan persis' },
-      destination_area: { type: 'string', description: 'Kawasan + kota, misal "Tebet, Jakarta Selatan"' },
+      destination_area: { type: 'string', description: 'Kawasan + kota. Kalau tahu, tambah nama jalan atau kelurahan supaya cabang yang benar ketemu, misal "Jl. Cikunir Raya, Bekasi Selatan".' },
       origin: { type: 'string', description: 'Asal: nama daerah, stasiun, mall, atau alamat. Pakai "lokasi_saya" kalau user tidak menyebut asal.' },
       depart_at: { type: 'string', description: 'Opsional. Waktu berangkat ISO 8601 dengan +07:00, misal 2026-10-03T18:00:00+07:00. Kosongkan untuk "sekarang".' },
       compare_times: { type: 'boolean', description: 'true kalau user nanya jam terbaik / hindari macet.' }
@@ -43,10 +45,11 @@ export async function runTripTool(env, input, cf = {}) {
   if (!key) return 'Fitur cek rute belum aktif di server. Jawab tanpa angka rute dan sarankan cek Google Maps.';
 
   try {
-    // 1. Destination
+    // 1. Destination (pick the branch whose address best fits the area given)
     const dest = await findPlace(key,
       [input.destination_name, input.destination_area].filter(Boolean).join(', '),
-      'places.id,places.displayName,places.location,places.parkingOptions,places.priceLevel,places.priceRange');
+      'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.parkingOptions,places.priceLevel,places.priceRange',
+      { name: input.destination_name, area: input.destination_area });
     if (!dest || !dest.location) {
       return 'Tempat tujuan tidak ketemu di Google Maps. Bilang terus terang dan sarankan cek Google Maps langsung.';
     }
@@ -91,7 +94,9 @@ export async function runTripTool(env, input, cf = {}) {
 
     // 5. Assemble a plain-text result for the model
     const L = [];
-    L.push(`TUJUAN (versi Google): ${dest.displayName ? dest.displayName.text : input.destination_name}`);
+    const destName = dest.displayName ? dest.displayName.text : input.destination_name;
+    const destAddr = dest.shortFormattedAddress || dest.formattedAddress || '';
+    L.push(`TUJUAN (versi Google): ${destName}${destAddr ? ', ' + destAddr : ''}`);
     L.push(`ASAL: ${originLabel}`);
     L.push(`BERANGKAT: ${depart.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} WIB`);
 
@@ -133,15 +138,21 @@ export async function runTripTool(env, input, cf = {}) {
 }
 
 // ---- Google calls ----------------------------------------------------------
-async function findPlace(key, query, fields) {
+// With `want` ({name, area}) it fetches up to 5 candidates and picks the best branch.
+async function findPlace(key, query, fields, want) {
   const res = await fetchT('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': fields },
-    body: JSON.stringify({ textQuery: query, languageCode: 'id', regionCode: 'ID', maxResultCount: 1, locationBias: JAKARTA_BIAS })
+    body: JSON.stringify({
+      textQuery: query, languageCode: 'id', regionCode: 'ID',
+      maxResultCount: want ? 5 : 1, locationBias: JAKARTA_BIAS
+    })
   }, 6000);
   if (!res.ok) { console.error('trip places', res.status, (await res.text()).slice(0, 300)); return null; }
   const data = await res.json();
-  return (data.places || [])[0] || null;
+  const places = data.places || [];
+  if (want) return pickBest(places, want.name, want.area);
+  return places[0] || null;
 }
 
 async function computeRoute(key, o, d, mode, departISO) {
@@ -183,7 +194,8 @@ function pickDeparture(s) {
 }
 const secs = v => parseInt(String(v || '0').replace('s', ''), 10) || 0;
 const fmtMin = s => { const m = Math.round(s / 60); return m >= 60 ? `${Math.floor(m / 60)} jam ${m % 60} mnt` : `${m} mnt`; };
-   const rp = n => 'Rp' + (Math.round(n / 1000) * 1000).toLocaleString('id-ID');
+const rp = n => 'Rp' + (Math.round(n / 1000) * 1000).toLocaleString('id-ID');
+
 function ojolEstimate(km) {
   const f = (perKm, min) => km <= OJOL.minKm ? min : min + (km - OJOL.minKm) * perKm;
   return [f(OJOL.perKm[0], OJOL.min[0]), f(OJOL.perKm[1], OJOL.min[1]) * OJOL.appMarkupHigh];

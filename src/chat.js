@@ -16,6 +16,7 @@
  */
 
 import { TRIP_TOOL, runTripTool } from './trip.js';
+import { pickBest } from './match.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-5';
 
@@ -273,15 +274,15 @@ INFO PERJALANAN
 - Kalau user nanya jam terbaik atau menghindari macet, set compare_times=true.
 - Angka berlabel [DATA GOOGLE] boleh disebut apa adanya. Angka berlabel [PERKIRAAN] harus disebut sebagai "perkiraan". Tarif parkir per jam jangan dikarang: cari lewat web search atau bilang belum tahu.
 - Format: tiga baris perbandingan diawali "• " (mobil/motor pribadi, ojol, transportasi umum), lalu satu baris parkir dan harga makan, lalu satu saran singkat (mana yang paling masuk akal dan jam berangkat terbaik). Untuk pertanyaan perjalanan, batas kata boleh sampai 250.
-- Jangan menyebut nama tool ini di dalam teks jawaban.
 - Kalau asal dari user cuma nama kawasan (misal "Bekasi Timur"), bilang angka rute dihitung dari titik tengah kawasan itu, dan ajak user kasih alamat, mall, atau stasiun asal kalau mau lebih akurat.
 - Jangan mengulang poin yang sama dua kali dan jangan menyimpulkan hal yang tidak ada di data (misal rute KRL). Kalau jaraknya dekat, cukup bilang transportasi umum kurang praktis.
 - Tulis dengan kalimat sederhana dan jelas, hindari kata yang bikin bingung.
+- Jangan menyebut nama tool ini di dalam teks jawaban.
 
 KARTU FOTO TEMPAT
 - Aplikasi NanyaDong menampilkan kartu foto (foto, rating, alamat, link Google Maps) di bawah jawabanmu lewat tool show_place_cards. Jadi JANGAN PERNAH bilang kamu nggak bisa nampilin foto atau chat ini cuma teks.
 - Setiap kali jawabanmu menyebut tempat usaha spesifik, WAJIB panggil show_place_cards SEKALI, SETELAH seluruh teks jawaban selesai ditulis. Isi maksimal 5 tempat, urutannya sama dengan di jawaban.
-- "name" = nama tempat persis, "area" = kawasan + kota (misal "Tebet, Jakarta Selatan").
+- "name" = nama tempat persis, "area" = kawasan + kota (misal "Tebet, Jakarta Selatan"). Kalau tahu, tambahkan nama jalan atau kelurahan supaya cabang yang benar ketemu (misal "Jl. Cikunir Raya, Bekasi Selatan").
 - Jangan panggil tool ini kalau nggak ada tempat spesifik (info macet, tips umum, atau kamu cuma tanya balik).
 - Kalau user minta foto suatu tempat, panggil show_place_cards dengan tempat itu.
 - Kalau user nanya kenapa satu tempat nggak ada kartunya, jelaskan bahwa tempat itu belum ketemu di Google Maps dengan nama yang sama. Sarankan cek langsung, dan kalau kamu sendiri nggak yakin tempat itu masih ada, bilang terus terang.
@@ -301,7 +302,7 @@ const PLACE_CARDS_TOOL = {
           type: 'object',
           properties: {
             name: { type: 'string', description: 'Nama tempat persis' },
-            area: { type: 'string', description: 'Kawasan + kota, misal "Tebet, Jakarta Selatan"' }
+            area: { type: 'string', description: 'Kawasan + kota, misal "Tebet, Jakarta Selatan". Kalau tahu, tambah nama jalan atau kelurahan supaya cabang yang benar ketemu.' }
           },
           required: ['name', 'area']
         }
@@ -407,7 +408,7 @@ async function lookupOne(env, hint) {
       textQuery: [hint.name, hint.area].filter(Boolean).join(', '),
       languageCode: 'id',
       regionCode: 'ID',
-      maxResultCount: 3,
+      maxResultCount: 5,
       // Bias towards Jabodetabek (centre of Jakarta, 50 km radius)
       locationBias: {
         circle: { center: { latitude: -6.2, longitude: 106.83 }, radius: 50000 }
@@ -421,8 +422,8 @@ async function lookupOne(env, hint) {
   }
   const data = await res.json();
   const candidates = Array.isArray(data.places) ? data.places : [];
-  // Take the first candidate whose name actually matches what Claude recommended
-  const p = candidates.find(c => namesMatch(hint.name, (c.displayName && c.displayName.text) || ''));
+  // Among candidates whose name matches, prefer the branch whose address fits the area
+  const p = pickBest(candidates, hint.name, hint.area);
   if (!p) {
     console.log('places: no match', JSON.stringify({
       wanted: hint.name,
@@ -536,18 +537,6 @@ async function getPhotoUrl(env, photoName) {
   if (!res.ok) return null;
   const data = await res.json();
   return data.photoUri || null;
-}
-
-// Loose name check: at least one meaningful word in common
-function namesMatch(wanted, found) {
-  const stop = new Set(['rm', 'rumah', 'makan', 'restoran', 'restaurant', 'warung', 'kedai', 'cafe', 'kafe',
-    'coffee', 'kopi', 'the', 'dan', 'and', 'di', 'jakarta', 'cabang', 'branch']);
-  const words = s => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9 ]/g, ' ')
-    .split(/\s+/).filter(w => w.length > 2 && !stop.has(w));
-  const a = new Set(words(wanted));
-  const b = words(found);
-  if (a.size === 0) return b.length > 0; // name made only of generic words: trust Google
-  return b.some(w => a.has(w));
 }
 
 async function fetchWithTimeout(url, opts, ms) {
