@@ -65,4 +65,4 @@ async function handlePlaces(request) {
   );
 }
 
-module.exports = { handleChat, handlePlaces };
+export { handleChat, handlePlaces };
