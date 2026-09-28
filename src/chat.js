@@ -285,4 +285,12 @@ async function handleChat(request) {
 
 
 
+
+async function handlePlaces(request) {
+  return new Response(
+    JSON.stringify({ places: [] }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
 export { handleChat, handlePlaces };
