@@ -1,629 +1,284 @@
-/**
- * NanyaDong — /api/chat
- * Chat handler, called from src/worker.js
- *
- * Environment (Worker → Settings → Variables and Secrets):
- *   ANTHROPIC_API_KEY  (secret, required)
- *   MODEL              (optional, default below)
- *   GOOGLE_PLACES_KEY  (secret, optional — enables photo cards and trip info)
- *   GOOGLE_ROUTES_KEY  (secret, optional — falls back to GOOGLE_PLACES_KEY)
- *
- * Bindings (wrangler.jsonc → kv_namespaces):
- *   RATE_LIMIT         KV namespace (optional but strongly recommended)
- *
- * Request:  POST { messages: [{role, content}], city: "Jabodetabek" }
- * Response: { reply, sources: [{ title, url, site }], places: [{ ...card }] }
- */
+import { Anthropic } from '@anthropic-ai/sdk';
 
-import { TRIP_TOOL, runTripTool } from './trip.js';
-import { pickBest } from './match.js';
+const client = new Anthropic();
 
-const DEFAULT_MODEL = 'claude-sonnet-5';
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
-const LIMITS = {
-  perHour: 20,          // questions per IP per hour
-  perDay: 60,           // questions per IP per day
-  maxMessages: 12,      // history turns sent to the model
-  maxChars: 1000,       // max characters per user message
-  maxSearches: 3,       // web searches per question (cost control)
-  maxTokens: 1500,
-  maxTripCalls: 2       // get_trip_info calls per question (cost control)
+/* ========== CITY CONFIGURATIONS ========== */
+const CITY_PROMPTS = {
+  jabodetabek: {
+    intro: 'Kamu adalah teman lokal Jakarta, Bogor, Depok, Tangerang, Bekasi yang udah lama tinggal di sini.',
+    context: 'User tinggal atau bertanya tentang area Jabodetabek: Jakarta (Pusat, Selatan, Barat, Utara, Timur), Bogor, Depok, Tangerang, Bekasi, Cikarang.',
+    tone: 'Bahasa casual Jakarta style, saya/kamu register, santai kayak ngobrol temen.',
+    transport: 'Transport umum: Transjakarta (bus Rp3.500 flat), KRL (Rp3.000–9.000 tergantung jarak), MRT (Rp4.000–14.000), LRT Jakarta (Rp5.000), LRT Jabodebek (Rp5.000–20.000), ojol/motor taxi (Rp2.600–2.700/km, min Rp13.000), Grab/Gojek.',
+    landmarks: 'Tempat terkenal: Monas, Kota Tua, Senayan, Blok M, Kemang, Menteng, Senopati, BSD, Alam Sutra, Lippo Karawaci, PIK, Kelapa Gading, Pondok Indah, Fatmawati.',
+    cuisine: 'Kuliner khas: Soto Betawi, Gado-gado, Lumpia, Tahu Goreng, Martabak Pecenongan, Nasi Kucing, Kopi Susu, Teh Telur, Nasi Goreng, Perkedel, Bakso.',
+    rules: '- Kalau asal dari user cuma nama kawasan, bilang angka dihitung dari titik tengah kawasan itu\n- Jangan mengulang poin yang sama dua kali\n- Jangan menyimpulkan hal yang tidak ada di data (misal rute KRL)\n- Tulis dengan kalimat sederhana dan jelas'
+  },
+  padang: {
+    intro: 'Kamu adalah teman lokal Padang dan sekitarnya (Padang Panjang, Pariaman, Air Tawar, Bukittinggi) yang udah lama tinggal di sini.',
+    context: 'User tinggal atau bertanya tentang Padang, Sumatera Barat: Padang Kota, Padang Panjang (pusat tekstil), Pariaman (pelabuhan), Air Tawar, Kampung Baru, Ulak Karang.',
+    tone: 'Bahasa casual Minang-Indonesia mix, saia/kau register, santai tapi kehangatan Minang style, ramah dan helpful.',
+    transport: 'Transport umum: Angkot/motor minibus (Rp3.000–5.000 murah), ojek lokal (Rp2.000–3.000/km), taksi lokal, jalan kaki. Belum ada sistem transit masal kayak Jakarta. Jarak Padang–Padang Panjang ~30km, ~1 jam angkot.',
+    landmarks: 'Tempat terkenal: Taman Lembah Hijau, Pantai Air Manis (legenda Mesukin), Danau Manjau, Pasar Raya Padang, Jam Gadang (Bukittinggi), Masjid Raya, Kampung Tua, Pulau Sikuai, Pasar Bungkus (Padang Panjang).',
+    cuisine: 'Kuliner khas: Rendang (premium Padang), Gulai Tambusu (hati sapi), Lumpia, Palemang, Perkedel, Nasi Padang (lengkap), Kuah Beulangong (kaldu tradisional), Durian Padang Panjang (musiman), Gula Aren, Kopi Padang.',
+    rules: '- Kalau asal dari user cuma nama kawasan (Padang Kota, Air Tawar, etc), hitung dari titik tengah area itu\n- Jangan mengulang poin\n- Jangan buat data yang tidak ada\n- Tulis sederhana dan jelas'
+  },
+  batam: {
+    intro: 'Kamu adalah teman lokal Batam yang udah lama tinggal di sini dan tau soal kerja, ekspat, visa, contractor.',
+    context: 'User tinggal atau bertanya tentang Batam: Nagoya, Batam Center, Sekupang, Batu Ampar. Banyak pekerja O&G, ekspat, contractor rotating dari berbagai negara. Industri: minyak, gas, fabrikasi, manufaktur.',
+    tone: 'Bahasa Indonesia standard + casual, saia/saudara fleksibel, friendly ke ekspat/contractor mindset, praktis dan helpful.',
+    transport: 'Transport: Ojek lokal (Rp2.500–3.000), taksi terukur, mobil sewaan harian (~Rp300rb–500rb), ferry ke Singapura (Tanah Merah, Changi) & Malaysia (Johor Bahru). Belum metro/transit mass.',
+    landmarks: 'Tempat terkenal: Nagoya Hill Mall (shopping), Batam Center (pusat bisnis), Waterfront City (residensial & dining), Pantai Pasir Putih, Barelang Bridge (jembatan ikonik), Marina Bay, Pulau Penyengat (sejarah).',
+    cuisine: 'Kuliner lokal: Kuah Beulangong (kaldu Minang), Mie Koba (mie lokal), Seafood segar mentah (Nagoya area, harga Singapura nearby), Laksa Batam, Martabak, Fusion food lokal (banyak ekspat). Dekat Singapura jadi makanan internasional juga tersedia.',
+    rules: '- Kalau user ekspat/contractor, mention visa, izin kerja, housing kalau relevan\n- Jangan mengulang poin\n- Jangan buat data yang tidak ada\n- Tulis sederhana dan jelas'
+  }
 };
 
-const ALLOWED_ORIGINS = [
-  'https://nanyadong.com',
-  'https://www.nanyadong.com'
-];
+function buildSystemPrompt(city = 'jabodetabek') {
+  const cfg = CITY_PROMPTS[city] || CITY_PROMPTS.jabodetabek;
+  
+  return `Kamu adalah NanyaDong.com — teman lokal yang tau segalanya tentang Indonesia.
 
-// ---------------------------------------------------------------------------
+${cfg.intro}
 
-export async function handleChat(request, env) {
+## Konteks Kota
+${cfg.context}
 
-  try {
-    // 1. Basic origin check (blocks casual abuse from other websites)
-    const origin = request.headers.get('Origin') || '';
-    if (origin && !isAllowedOrigin(origin)) {
-      return json({ reply: 'Akses ditolak.' }, 403);
-    }
+## Tone & Bahasa
+${cfg.tone}
 
-    if (!env.ANTHROPIC_API_KEY) {
-      return json({ reply: 'Server belum dikonfigurasi. Coba lagi nanti ya!' }, 500);
-    }
+## Transport & Logistik
+${cfg.transport}
 
-    // 2. Parse + validate input
-    let body;
-    try { body = await request.json(); }
-    catch { return json({ reply: 'Format pesan nggak valid.' }, 400); }
+## Landmark & Geografi
+${cfg.landmarks}
 
-    const messages = sanitizeMessages(body.messages);
-    if (!messages) {
-      return json({ reply: 'Pesannya kosong atau terlalu panjang. Coba dipersingkat ya!' }, 400);
-    }
-    const city = typeof body.city === 'string' ? body.city.slice(0, 40) : 'Jabodetabek';
+## Kuliner & Makanan Lokal
+${cfg.cuisine}
 
-    // 3. Rate limit per IP
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const limited = await checkRateLimit(env, ip);
-    if (limited) {
-      return json({ reply: limited }, 429);
-    }
+## Aturan
+${cfg.rules}
 
-    // 4. Where is the user? (from Cloudflare, no permission needed)
-    const cf = request.cf || {};
-    const userGeo = {
-      city: cf.city || null,
-      region: cf.region || null,
-      country: cf.country || null,
-      latitude: cf.latitude || null,
-      longitude: cf.longitude || null
-    };
+## Tentang Dirimu
+- Tidak pernah mengada-ada atau buat data palsu
+- Kalau tidak tahu, bilang "belum tahu" atau "tidak ada info"
+- Jangan bicara tentang topik yang jauh dari konteks kota (politik nasional, international affairs, etc)
+- Fokus: tempat lokal, rekomendasi, tips praktis, info lokal
+- Selalu sebut nama tempat, area, atau landmark spesifik kalau bisa
 
-    // 5. Call Claude
-    const { reply, sources, placeHints } = await askClaude(env, messages, city, userGeo);
-    console.log('places hints', JSON.stringify(placeHints));
-    const places = await lookupPlaces(env, placeHints);
-    return json({ reply, sources, places });
-
-  } catch (err) {
-    console.error('chat error:', err && err.stack ? err.stack : err);
-    return json({ reply: 'Waduh, lagi ada gangguan. Coba nanya lagi sebentar lagi ya!' }, 500);
-  }
+## Response Format
+Jawab natural dan santai seperti chat teman. Kalau diminta rekomendasi tempat:
+- Sebut nama tempat + area
+- Alasan kenapa bagus
+- Kalau tahu: rating, harga range, jam buka, akses transport
+- Google Maps link kalau tersedia (format: [nama](https://maps.google.com/...))
+`;
 }
 
-// ---------------------------------------------------------------------------
-// Claude
+/* ========== TRIP TOOL ========== */
+async function getTripInfo(origin, destination, city = 'jabodetabek') {
+  if (!GOOGLE_API_KEY) {
+    return {
+      error: 'Google API key tidak tersedia',
+      destination_info: null,
+      transport_data: null
+    };
+  }
 
-async function askClaude(env, messages, city, userGeo) {
-  const payload = {
-    model: env.MODEL || DEFAULT_MODEL,
-    max_tokens: LIMITS.maxTokens,
-    system: buildSystemPrompt(city, userGeo),
-    messages,
-    tools: [{
-      type: 'web_search_20250305',
-      name: 'web_search',
-      max_uses: LIMITS.maxSearches,
-      // Search results localised to Jakarta, even for diaspora users abroad
-      user_location: {
-        type: 'approximate',
-        city: 'Jakarta',
-        region: 'DKI Jakarta',
-        country: 'ID',
-        timezone: 'Asia/Jakarta'
+  try {
+    // Fetch destination details from Google Places API (New)
+    const placesRes = await fetch(
+      `https://places.googleapis.com/v1/places:searchText`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_API_KEY
+        },
+        body: JSON.stringify({
+          textQuery: destination,
+          locationBias: {
+            circle: {
+              center: { latitude: -6.2, longitude: 106.8 },
+              radius: 50000
+            }
+          }
+        })
       }
-    }, PLACE_CARDS_TOOL, TRIP_TOOL]
-  };
+    );
+    const placesData = await placesRes.json();
+    const place = placesData.places?.[0];
 
-  let convo = [...messages];
-  let textParts = [];
-  let toolHints = null;                    // from show_place_cards
-  let tripBudget = LIMITS.maxTripCalls;    // get_trip_info calls left
-  const sourceMap = new Map();             // url -> title
+    // Fetch routes from Google Routes API
+    const routesRes = await fetch(
+      `https://routes.googleapis.com/routes/v1:computeRoutes`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_API_KEY
+        },
+        body: JSON.stringify({
+          origins: [{ address: origin }],
+          destinations: [{ address: destination }],
+          travelModes: ['DRIVE', 'TRANSIT']
+        })
+      }
+    );
+    const routesData = await routesRes.json();
 
-  // Loop: web search can pause long turns (pause_turn), and the model may
-  // call get_trip_info / show_place_cards before it has written its answer.
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({ ...payload, messages: convo })
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('Anthropic API error', res.status, errText.slice(0, 500));
-      throw new Error(`Anthropic API ${res.status}`);
+    let result = `[DATA GOOGLE]\n`;
+    if (place) {
+      result += `Destinasi: ${place.displayName?.text || destination}\n`;
+      if (place.formattedAddress) result += `Alamat: ${place.formattedAddress}\n`;
+      if (place.rating) result += `Rating: ${place.rating} (${place.userRatingCount || 0} ulasan)\n`;
+      if (place.opening_hours?.periods) {
+        const now = new Date();
+        const dayIdx = now.getDay();
+        const period = place.opening_hours.periods[dayIdx];
+        if (period?.open && period?.close) {
+          result += `Jam buka hari ini: ${period.open.time.slice(0, 2)}:${period.open.time.slice(2)} - ${period.close.time.slice(0, 2)}:${period.close.time.slice(2)}\n`;
+        }
+      }
     }
 
-    const data = await res.json();
-    const content = Array.isArray(data.content) ? data.content : [];
-
-    const cardCalls = [];
-    const tripCalls = [];
-    for (const block of content) {
-      if (block.type === 'tool_use' && block.name === 'show_place_cards') {
-        cardCalls.push(block);
-        const list = block.input && Array.isArray(block.input.places) ? block.input.places : [];
-        toolHints = (toolHints || []).concat(list);
-        continue;
-      }
-      if (block.type === 'tool_use' && block.name === 'get_trip_info') {
-        tripCalls.push(block);
-        continue;
-      }
-      if (block.type === 'text' && block.text) {
-        textParts.push(block.text);
-        for (const c of block.citations || []) {
-          if (c && c.url && /^https?:\/\//.test(c.url) && !sourceMap.has(c.url)) {
-            sourceMap.set(c.url, (c.title || '').trim());
+    if (routesData.routes?.length > 0) {
+      result += `\n[PERKIRAAN TRANSPORTASI]\n`;
+      routesData.routes.forEach((route, idx) => {
+        const leg = route.legs[0];
+        const mode = ['DRIVE', 'TRANSIT'][idx];
+        if (leg) {
+          const dist = leg.distanceMeters / 1000;
+          const dur = Math.ceil(leg.duration.seconds / 60);
+          result += `${mode === 'DRIVE' ? 'Mobil/Ojol' : 'Transit Umum'}: ${dur} menit (~${dist.toFixed(1)}km)\n`;
+          
+          if (mode === 'DRIVE') {
+            const fuelCost = Math.round(dist * 1500);
+            result += `  BBM estimasi: Rp${fuelCost.toLocaleString('id-ID')}\n`;
+            const ojolMin = 13000, ojolPerKm = 2650;
+            const ojolCost = Math.max(ojolMin, Math.round(dist * ojolPerKm));
+            result += `  Ojol estimasi: Rp${ojolCost.toLocaleString('id-ID')} (tanpa surge)\n`;
           }
         }
-      }
+      });
     }
 
-    if (data.stop_reason === 'pause_turn') {
-      convo = [...convo, { role: 'assistant', content }];
-      continue;
+    return {
+      error: null,
+      destination_info: place,
+      transport_data: routesData,
+      summary: result
+    };
+  } catch (err) {
+    return {
+      error: err.message,
+      destination_info: null,
+      transport_data: null
+    };
+  }
+}
+
+/* ========== MAIN HANDLER ========== */
+export async function handleChat(request) {
+  if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response('Invalid JSON', { status: 400 });
+  }
+
+  const { messages, city } = body;
+  if (!Array.isArray(messages)) {
+    return new Response(JSON.stringify({ error: 'messages must be an array' }), { status: 400 });
+  }
+
+  const selectedCity = city && CITY_PROMPTS[city] ? city : 'jabodetabek';
+  const systemPrompt = buildSystemPrompt(selectedCity);
+
+  const tools = [
+    {
+      name: 'get_trip_info',
+      description: 'Dapatkan informasi perjalanan: durasi, biaya, moda transportasi dari asal ke destinasi',
+      input_schema: {
+        type: 'object',
+        properties: {
+          origin: { type: 'string', description: 'Asal perjalanan (alamat atau area)' },
+          destination: { type: 'string', description: 'Destinasi perjalanan (nama tempat atau alamat)' }
+        },
+        required: ['origin', 'destination']
+      }
+    }
+  ];
+
+  let response;
+  let conversationMessages = [...messages];
+
+  // Tool-use loop (max 2 iterations for trip tool)
+  let toolCalls = 0;
+  const maxToolCalls = 2;
+
+  while (true) {
+    try {
+      response = await client.messages.create({
+        model: 'claude-opus-4-20250805',
+        max_tokens: 1500,
+        system: systemPrompt,
+        tools: tools,
+        messages: conversationMessages
+      });
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ error: 'API error', details: err.message }),
+        { status: 500 }
+      );
     }
 
-    if (data.stop_reason === 'tool_use' && (cardCalls.length || tripCalls.length)) {
-      // Answer already written and only cards requested: done.
-      if (!tripCalls.length && textParts.join('').trim().length >= 20) break;
+    // Check if there are tool uses
+    const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
+    if (toolUseBlocks.length === 0 || toolCalls >= maxToolCalls) {
+      // No more tool calls, extract final response
+      break;
+    }
 
-      const results = [];
-      for (const c of tripCalls) {
-        let out;
-        if (tripBudget-- > 0) {
-          out = await runTripTool(env, c.input || {}, userGeo);
-        } else {
-          out = 'Batas cek rute per pertanyaan tercapai. Jawab dengan data yang sudah ada.';
-        }
-        results.push({ type: 'tool_result', tool_use_id: c.id, content: out });
-      }
-      for (const c of cardCalls) {
-        results.push({
-          type: 'tool_result', tool_use_id: c.id,
-          content: 'Kartu siap ditampilkan. Sekarang tulis jawabanmu untuk user.'
+    // Process tool calls
+    const toolResults = [];
+    for (const toolUse of toolUseBlocks) {
+      if (toolUse.name === 'get_trip_info') {
+        const tripData = await getTripInfo(toolUse.input.origin, toolUse.input.destination, selectedCity);
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: toolUse.id,
+          content: tripData.summary || `Error: ${tripData.error}`
         });
       }
-      // Drop any preamble written before the trip lookup; the final answer replaces it
-      if (tripCalls.length) textParts = [];
-      convo = [...convo, { role: 'assistant', content }, { role: 'user', content: results }];
-      continue;
     }
-    break;
+
+    // Add assistant response and tool results to conversation
+    conversationMessages.push({
+      role: 'assistant',
+      content: response.content
+    });
+    conversationMessages.push({
+      role: 'user',
+      content: toolResults
+    });
+
+    toolCalls++;
   }
 
-  const extracted = extractPlaceHints(textParts.join(''));
-  const rawText = extracted.text;
-  // Priority: tool call > legacy <places> block > bullet lines in the reply
-  let placeHints = normaliseHints(toolHints);
-  if (!placeHints.length) placeHints = extracted.hints;
-  if (!placeHints.length) placeHints = hintsFromBullets(rawText);
-  const reply = cleanReply(rawText) ||
-    'Hmm, belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
+  // Extract final text response
+  const textBlocks = response.content.filter(b => b.type === 'text');
+  const reply = textBlocks.length > 0 ? textBlocks[0].text : 'Maaf, tidak bisa menjawab.';
 
-  // Up to 4 sources, at most one per website
-  const sources = [];
-  const seenHosts = new Set();
-  for (const [url, title] of sourceMap) {
-    let host;
-    try { host = new URL(url).hostname.replace(/^www\./, ''); } catch { continue; }
-    if (seenHosts.has(host)) continue;
-    seenHosts.add(host);
-    sources.push({ url, title: title || host, site: host });
-    if (sources.length >= 4) break;
-  }
-
-  return { reply, sources, placeHints };
-}
-
-function buildSystemPrompt(city, userGeo) {
-  const now = new Date().toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta',
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  });
-
-  const where = [userGeo.city, userGeo.region, userGeo.country].filter(Boolean).join(', ') || 'tidak diketahui';
-  const abroad = userGeo.country && userGeo.country !== 'ID';
-
-  return `Kamu adalah NanyaDong — "teman lokal yang tau segalanya" untuk wilayah ${city} (Jakarta, Bogor, Depok, Tangerang, Bekasi).
-
-SEKARANG: ${now} WIB.
-PERKIRAAN LOKASI USER: ${where}.${abroad ? ' User kemungkinan orang Indonesia di luar negeri atau sedang merencanakan perjalanan — jangan anggap dia sedang di Jakarta sekarang.' : ''}
-
-KEPRIBADIAN
-- Ngomong kayak temen yang udah lama tinggal di Jabodetabek: santai, hangat, to the point.
-- Selalu pakai "saya/kamu". Kalau user formal atau terkesan lebih tua, pakai "saya/Anda".
-- JANGAN PERNAH pakai "lu", "lo", "elo", "gue", atau "gua", bahkan kalau user sendiri pakai kata-kata itu. Tetap santai dan hangat, tapi sopan.
-- Kalau user nulis dalam English, jawab dalam English yang santai.
-- Boleh pakai 1–2 emoji, jangan berlebihan.
-
-TOPIK UTAMA
-Kuliner & nongkrong, ahli & spesialis (tukang pijit, urut, dokter, tukang jahit, dll), tempat menarik & hidden gems, hunian (kos, kontrakan), info sekitar (macet, banjir, demo), serba-serbi (laundry, bengkel, notaris, dll). Pertanyaan di luar itu boleh dijawab singkat, lalu arahkan balik ke hal-hal lokal.
-
-KEJUJURAN — PALING PENTING
-- JANGAN PERNAH mengarang nama tempat, alamat, nomor telepon, harga, atau jam buka.
-- Untuk rekomendasi tempat, jasa, harga, atau info terkini, pakai web search dulu supaya infonya masih berlaku.
-- Kalau nggak yakin sebuah tempat masih buka atau infonya sudah lama, bilang terus terang dan sarankan cek Google Maps atau ulasan terbaru dulu.
-- Kalau nggak nemu info yang bisa dipercaya, bilang aja belum nemu. Lebih baik jujur daripada ngasih rekomendasi asal.
-- Untuk info sekitar (macet, banjir, demo): sebutkan kapan info itu dilaporkan, dan ingatkan kondisi bisa berubah cepat.
-
-KESEHATAN & KESELAMATAN
-- Untuk urut, pijat saraf, keluhan badan, atau dokter: boleh kasih rekomendasi, tapi ingatkan singkat untuk ke dokter kalau sakitnya parah, mati rasa, atau nggak membaik.
-- Kalau ada keadaan darurat, arahkan ke 112 atau 119 (ambulans).
-
-FORMAT JAWABAN
-- Tampilan chat cuma teks biasa: JANGAN pakai markdown (tanpa **, #, tabel, atau link markdown).
-- Kasih 3–5 rekomendasi paling pas, bukan daftar panjang.
-- Untuk tiap tempat: nama, area/kawasan, kenapa direkomendasiin (1 kalimat), dan kisaran harga kalau tau.
-- Pisahkan tiap rekomendasi dengan baris baru, awali dengan "• ".
-- Hasil web search itu bahan riset, bukan buat disalin. Tulis ulang semuanya dengan gaya ngobrol kamu sendiri. JANGAN kutip kalimat dari artikel, review, atau food vlogger, dan jangan pakai tanda kutip untuk omongan orang lain.
-- Sebut area/kawasan (misal "Jl. Juanda, Jakpus" atau "Tebet"). Alamat lengkap cuma kalau jelas dari sumber yang bisa dipercaya.
-- Singkat: idealnya di bawah 180 kata.
-- Kalau pertanyaannya terlalu umum (misal "makan enak di mana?"), boleh tanya balik SATU hal: daerahnya di mana atau budgetnya berapa. Tapi kalau bisa, kasih beberapa pilihan dulu baru tanya.
-
-INFO PERJALANAN
-- Kalau user nanya soal menuju sebuah tempat (berapa lama, ongkos, naik apa, parkir, jam berangkat, biaya makan di sana), panggil get_trip_info SEBELUM menulis jawaban. Maksimal untuk 1-2 tempat.
-- Asal: pakai yang disebut user. Kalau tidak disebut, isi origin dengan "lokasi_saya". Kalau hasil tool bilang asal tidak diketahui, tanya SATU hal: berangkat dari mana?
-- Kalau user nanya jam terbaik atau menghindari macet, set compare_times=true.
-- Angka berlabel [DATA GOOGLE] boleh disebut apa adanya. Angka berlabel [PERKIRAAN] harus disebut sebagai "perkiraan". Tarif parkir per jam jangan dikarang: cari lewat web search atau bilang belum tahu.
-- Format: tiga baris perbandingan diawali "• " (mobil/motor pribadi, ojol, transportasi umum), lalu satu baris parkir dan harga makan, lalu satu saran singkat (mana yang paling masuk akal dan jam berangkat terbaik). Untuk pertanyaan perjalanan, batas kata boleh sampai 250.
-- Kalau asal dari user cuma nama kawasan (misal "Bekasi Timur"), bilang angka rute dihitung dari titik tengah kawasan itu, dan ajak user kasih alamat, mall, atau stasiun asal kalau mau lebih akurat.
-- Jangan mengulang poin yang sama dua kali dan jangan menyimpulkan hal yang tidak ada di data (misal rute KRL). Kalau jaraknya dekat, cukup bilang transportasi umum kurang praktis.
-- Tulis dengan kalimat sederhana dan jelas, hindari kata yang bikin bingung.
-- Jangan menyebut nama tool ini di dalam teks jawaban.
-
-KARTU FOTO TEMPAT
-- Aplikasi NanyaDong menampilkan kartu foto (foto, rating, alamat, link Google Maps) di bawah jawabanmu lewat tool show_place_cards. Jadi JANGAN PERNAH bilang kamu nggak bisa nampilin foto atau chat ini cuma teks.
-- Setiap kali jawabanmu menyebut tempat usaha spesifik, WAJIB panggil show_place_cards SEKALI, SETELAH seluruh teks jawaban selesai ditulis. Isi maksimal 5 tempat, urutannya sama dengan di jawaban.
-- "name" = nama tempat persis, "area" = kawasan + kota (misal "Tebet, Jakarta Selatan"). Kalau tahu, tambahkan nama jalan atau kelurahan supaya cabang yang benar ketemu (misal "Jl. Cikunir Raya, Bekasi Selatan").
-- Jangan panggil tool ini kalau nggak ada tempat spesifik (info macet, tips umum, atau kamu cuma tanya balik).
-- Kalau user minta foto suatu tempat, panggil show_place_cards dengan tempat itu.
-- Kalau user nanya kenapa satu tempat nggak ada kartunya, jelaskan bahwa tempat itu belum ketemu di Google Maps dengan nama yang sama. Sarankan cek langsung, dan kalau kamu sendiri nggak yakin tempat itu masih ada, bilang terus terang.
-- Jangan menyebut nama tool ini di dalam teks jawaban.`;
-}
-
-const PLACE_CARDS_TOOL = {
-  name: 'show_place_cards',
-  description: 'Tampilkan kartu foto Google Maps untuk tempat usaha spesifik yang kamu rekomendasikan di jawaban. Panggil sekali, setelah seluruh teks jawaban selesai.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      places: {
-        type: 'array',
-        maxItems: 5,
-        items: {
-          type: 'object',
-          properties: {
-            name: { type: 'string', description: 'Nama tempat persis' },
-            area: { type: 'string', description: 'Kawasan + kota, misal "Tebet, Jakarta Selatan". Kalau tahu, tambah nama jalan atau kelurahan supaya cabang yang benar ketemu.' }
-          },
-          required: ['name', 'area']
-        }
-      }
-    },
-    required: ['places']
-  }
-};
-
-function normaliseHints(list) {
-  if (!Array.isArray(list)) return [];
-  return list
-    .filter(p => p && typeof p.name === 'string' && p.name.trim())
-    .slice(0, 5)
-    .map(p => ({
-      name: p.name.trim().slice(0, 80),
-      area: typeof p.area === 'string' ? p.area.trim().slice(0, 80) : ''
-    }));
-}
-
-// Last-resort fallback: read "• Nama Tempat, Kawasan — alasan" lines from the reply
-function hintsFromBullets(text) {
-  const out = [];
-  const re = /^•\s*([^,\n]{2,60}),\s*([^—–\n(]{2,40})/gm;
-  let m;
-  while ((m = re.exec(text)) && out.length < 5) {
-    const name = m[1].trim();
-    if (/\s(di|yang|dekat|deket)\s/i.test(' ' + name + ' ')) continue; // generic, not a named place
-    out.push({ name, area: m[2].trim() });
-  }
-  return out;
-}
-
-// Pull the hidden <places>[...]</places> block out of the model's text
-function extractPlaceHints(text) {
-  const re = /<places>([\s\S]*?)<\/places>/i;
-  const m = text.match(re);
-  let hints = [];
-  if (m) {
-    try {
-      const parsed = JSON.parse(m[1].trim());
-      if (Array.isArray(parsed)) {
-        hints = parsed
-          .filter(p => p && typeof p.name === 'string' && p.name.trim())
-          .slice(0, 5)
-          .map(p => ({
-            name: p.name.trim().slice(0, 80),
-            area: typeof p.area === 'string' ? p.area.trim().slice(0, 80) : ''
-          }));
-      }
-    } catch { /* malformed JSON: no cards, answer still shown */ }
-  }
-  // Remove the block (and any unterminated remainder) from the visible reply
-  const cleaned = text.replace(re, '').replace(/<places>[\s\S]*$/i, '');
-  return { text: cleaned, hints };
-}
-
-function cleanReply(text) {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')      // strip bold if the model slips
-    .replace(/^#{1,6}\s+/gm, '')          // strip headings
-    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '$1 ($2)') // markdown links → plain
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-// ---------------------------------------------------------------------------
-// Google Places (New): verify each place and fetch a photo
-
-const PLACES_FIELDS = [
-  'places.id',
-  'places.displayName',
-  'places.formattedAddress',
-  'places.shortFormattedAddress',
-  'places.rating',
-  'places.userRatingCount',
-  'places.googleMapsUri',
-  'places.businessStatus',
-  'places.currentOpeningHours.openNow',
-  'places.photos'
-].join(',');
-
-async function lookupPlaces(env, hints) {
-  if (!env.GOOGLE_PLACES_KEY || !Array.isArray(hints) || hints.length === 0) return [];
-  const results = await Promise.all(hints.map(h => lookupOne(env, h).catch(err => {
-    console.error('places lookup failed', h.name, String(err));
-    return null;
-  })));
-  // Drop misses and duplicates
-  const seen = new Set();
-  return results.filter(p => p && !seen.has(p.id) && seen.add(p.id));
-}
-
-async function lookupOne(env, hint) {
-  const res = await fetchWithTimeout('https://places.googleapis.com/v1/places:searchText', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY,
-      'X-Goog-FieldMask': PLACES_FIELDS
-    },
-    body: JSON.stringify({
-      textQuery: [hint.name, hint.area].filter(Boolean).join(', '),
-      languageCode: 'id',
-      regionCode: 'ID',
-      maxResultCount: 5,
-      // Bias towards Jabodetabek (centre of Jakarta, 50 km radius)
-      locationBias: {
-        circle: { center: { latitude: -6.2, longitude: 106.83 }, radius: 50000 }
-      }
-    })
-  }, 6000);
-
-  if (!res.ok) {
-    console.error('Places API', res.status, (await res.text()).slice(0, 300));
-    return null;
-  }
-  const data = await res.json();
-  const candidates = Array.isArray(data.places) ? data.places : [];
-  // Among candidates whose name matches, prefer the branch whose address fits the area
-  const p = pickBest(candidates, hint.name, hint.area);
-  if (!p) {
-    console.log('places: no match', JSON.stringify({
-      wanted: hint.name,
-      area: hint.area,
-      got: candidates.map(c => c.displayName && c.displayName.text)
-    }));
-    return null;
-  }
-
-  return buildCard(env, p, hint.area);
-}
-
-// Turn a Places API (New) place object into the card the browser renders
-async function buildCard(env, p, fallbackAddress) {
-  const foundName = (p.displayName && p.displayName.text) || '';
-
-  let photo = null;
-  const ph = Array.isArray(p.photos) ? p.photos[0] : null;
-  if (ph && ph.name) {
-    photo = await getPhotoUrl(env, ph.name).catch(() => null);
-    if (photo) {
-      const author = Array.isArray(ph.authorAttributions) ? ph.authorAttributions[0] : null;
-      photo = {
-        url: photo,
-        author: author ? author.displayName : null,
-        authorUrl: author ? author.uri : null
-      };
-    }
-  }
-
-  return {
-    id: p.id,
-    name: foundName,
-    address: p.shortFormattedAddress || p.formattedAddress || fallbackAddress || '',
-    rating: typeof p.rating === 'number' ? p.rating : null,
-    ratingCount: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
-    mapsUrl: p.googleMapsUri || null,
-    status: p.businessStatus || null,          // OPERATIONAL, CLOSED_TEMPORARILY, CLOSED_PERMANENTLY
-    openNow: p.currentOpeningHours ? p.currentOpeningHours.openNow : null,
-    photo
-  };
-}
-
-// ---------------------------------------------------------------------------
-// /api/places — rebuild cards from place IDs when an old chat is reopened.
-// Google's terms only allow caching place_id, so the browser keeps IDs only
-// and fresh details are fetched on demand.
-
-const DETAILS_FIELDS = PLACES_FIELDS.split(',').map(f => f.replace(/^places\./, '')).join(',');
-const PLACE_ID_RE = /^[A-Za-z0-9_-]{10,300}$/;
-
-export async function handlePlaces(request, env) {
-  try {
-    const origin = request.headers.get('Origin') || '';
-    if (origin && !isAllowedOrigin(origin)) return json({ places: [] }, 403);
-    if (!env.GOOGLE_PLACES_KEY) return json({ places: [] });
-
-    let body;
-    try { body = await request.json(); } catch { return json({ places: [] }, 400); }
-    const ids = Array.isArray(body.ids)
-      ? [...new Set(body.ids.filter(id => typeof id === 'string' && PLACE_ID_RE.test(id)))].slice(0, 5)
-      : [];
-    if (!ids.length) return json({ places: [] });
-
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    if (await placesRateLimited(env, ip)) return json({ places: [] }, 429);
-
-    const results = await Promise.all(ids.map(id => detailsOne(env, id).catch(err => {
-      console.error('place details failed', id, String(err));
-      return null;
-    })));
-    return json({ places: results.filter(Boolean) });
-  } catch (err) {
-    console.error('places error:', err && err.stack ? err.stack : err);
-    return json({ places: [] }, 500);
-  }
-}
-
-async function detailsOne(env, id) {
-  const res = await fetchWithTimeout(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}?languageCode=id&regionCode=ID`, {
-    headers: {
-      'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY,
-      'X-Goog-FieldMask': DETAILS_FIELDS
-    }
-  }, 6000);
-  if (!res.ok) {
-    console.error('Place Details', res.status, (await res.text()).slice(0, 300));
-    return null;
-  }
-  const p = await res.json();
-  if (!p || !p.id) return null;
-  return buildCard(env, p, '');
-}
-
-// Separate, generous budget so reopening old chats never eats the question quota
-async function placesRateLimited(env, ip) {
-  if (!env.RATE_LIMIT) return false;
-  const key = `rl:p:${ip}:${new Date().toISOString().slice(0, 13)}`;
-  const count = parseInt((await env.RATE_LIMIT.get(key)) || '0', 10);
-  if (count >= 40) return true;
-  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: 3700 });
-  return false;
-}
-
-// Ask Google for a short-lived public photo URL, so the API key never reaches the browser
-async function getPhotoUrl(env, photoName) {
-  const url = `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=480&skipHttpRedirect=true`;
-  const res = await fetchWithTimeout(url, {
-    headers: { 'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY }
-  }, 5000);
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.photoUri || null;
-}
-
-async function fetchWithTimeout(url, opts, ms) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
-  finally { clearTimeout(t); }
-}
-
-// ---------------------------------------------------------------------------
-// Validation
-
-function sanitizeMessages(raw) {
-  if (!Array.isArray(raw) || raw.length === 0) return null;
-
-  const clean = raw
-    .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .map(m => ({ role: m.role, content: m.content.trim() }))
-    .filter(m => m.content.length > 0)
-    .slice(-LIMITS.maxMessages);
-
-  // Must start with a user turn and end with a user turn
-  while (clean.length && clean[0].role !== 'user') clean.shift();
-  if (!clean.length || clean[clean.length - 1].role !== 'user') return null;
-
-  // Enforce length on the newest user message; truncate older assistant turns
-  const last = clean[clean.length - 1];
-  if (last.content.length > LIMITS.maxChars) return null;
-  for (const m of clean) {
-    if (m.content.length > 4000) m.content = m.content.slice(0, 4000);
-  }
-
-  // Merge consecutive same-role turns (API requires alternation)
-  const merged = [];
-  for (const m of clean) {
-    const prev = merged[merged.length - 1];
-    if (prev && prev.role === m.role) prev.content += '\n\n' + m.content;
-    else merged.push({ ...m });
-  }
-  return merged;
-}
-
-function isAllowedOrigin(origin) {
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  // workers.dev preview URL
-  if (/^https:\/\/([a-z0-9-]+\.)?nanyadong\.[a-z0-9-]+\.workers\.dev$/.test(origin)) return true;
-  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
-  return false;
-}
-
-// ---------------------------------------------------------------------------
-// Rate limiting (KV). Skipped gracefully if the binding is missing.
-
-async function checkRateLimit(env, ip) {
-  if (!env.RATE_LIMIT) return null;
-
-  const now = new Date();
-  const hourKey = `rl:h:${ip}:${now.toISOString().slice(0, 13)}`; // YYYY-MM-DDTHH
-  const dayKey = `rl:d:${ip}:${now.toISOString().slice(0, 10)}`;  // YYYY-MM-DD
-
-  const [hourCount, dayCount] = await Promise.all([
-    env.RATE_LIMIT.get(hourKey).then(v => parseInt(v || '0', 10)),
-    env.RATE_LIMIT.get(dayKey).then(v => parseInt(v || '0', 10))
-  ]);
-
-  if (dayCount >= LIMITS.perDay) {
-    return 'Wah, hari ini kamu udah banyak banget nanya 😄 Lanjut besok lagi ya!';
-  }
-  if (hourCount >= LIMITS.perHour) {
-    return 'Pelan-pelan dulu ya 😄 Coba nanya lagi sekitar satu jam lagi.';
-  }
-
-  await Promise.all([
-    env.RATE_LIMIT.put(hourKey, String(hourCount + 1), { expirationTtl: 3700 }),
-    env.RATE_LIMIT.put(dayKey, String(dayCount + 1), { expirationTtl: 90000 })
-  ]);
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
-    }
-  });
+  return new Response(
+    JSON.stringify({
+      reply: reply,
+      sources: null,
+      places: null
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
+  );
 }
