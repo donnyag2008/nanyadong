@@ -180,7 +180,7 @@ async function getTripInfo(origin, destination, city = 'jabodetabek') {
 }
 
 /* ========== MAIN HANDLER ========== */
-export async function handleChat(request) {
+async function handleChat(request) {
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
   let body;
@@ -282,5 +282,6 @@ export async function handleChat(request) {
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 }
+
 
 export { handleChat, handlePlaces };
