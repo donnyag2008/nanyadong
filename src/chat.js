@@ -282,3 +282,5 @@ export async function handleChat(request) {
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 }
+
+export { handleChat, handlePlaces };
