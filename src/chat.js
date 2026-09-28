@@ -1,9 +1,16 @@
+<<<<<<< HEAD
 ﻿const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_KEY;
 
 console.log('=== STARTUP ===');
 console.log('ANTHROPIC_API_KEY:', ANTHROPIC_API_KEY ? 'LOADED' : 'MISSING');
 console.log('GOOGLE_API_KEY:', GOOGLE_API_KEY ? 'LOADED' : 'MISSING');
+=======
+// NanyaDong chat.js - clean version
+// Secrets come from `env` (Cloudflare Workers), NOT process.env
+
+const MODEL = 'claude-sonnet-5-5';
+>>>>>>> 2981ff1421d1bbc7677c3402bd48da37262eda1f
 
 const CITY_PROMPTS = {
   jabodetabek: 'Kamu teman lokal Jabodetabek. Jawab tentang Jakarta, Bogor, Depok, Tangerang, Bekasi.',
@@ -11,11 +18,16 @@ const CITY_PROMPTS = {
   batam: 'Kamu teman lokal Batam. Jawab tentang Batam, Nagoya, Batam Center. Tau tentang kerja O&G, visa, ekspat.'
 };
 
+<<<<<<< HEAD
 function buildSystemPrompt(city = 'jabodetabek') {
+=======
+function buildSystemPrompt(city) {
+>>>>>>> 2981ff1421d1bbc7677c3402bd48da37262eda1f
   const prompt = CITY_PROMPTS[city] || CITY_PROMPTS.jabodetabek;
   return prompt + '\n\nJawab santai seperti teman. Jangan mengada-ada. Kalau tidak tahu bilang belum tahu.';
 }
 
+<<<<<<< HEAD
 async function callClaude(systemPrompt, messages) {
   try {
     console.log('Calling Claude with city context...');
@@ -48,10 +60,34 @@ async function callClaude(systemPrompt, messages) {
   try {
     console.log('Calling Claude with city context...');
     
+=======
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+async function handleChat(request, env) {
+  try {
+    if (!env || !env.ANTHROPIC_API_KEY) {
+      return json({ reply: '[DEBUG] ANTHROPIC_API_KEY tidak ditemukan di env.', sources: null, places: null });
+    }
+
+    const body = await request.json();
+    const messages = body.messages;
+    const city = CITY_PROMPTS[body.city] ? body.city : 'jabodetabek';
+
+    if (!Array.isArray(messages)) {
+      return json({ error: 'invalid messages' }, 400);
+    }
+
+>>>>>>> 2981ff1421d1bbc7677c3402bd48da37262eda1f
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+<<<<<<< HEAD
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01'
       },
@@ -59,10 +95,20 @@ async function callClaude(systemPrompt, messages) {
         model: 'claude-opus-4-20250805',
         max_tokens: 1500,
         system: systemPrompt,
+=======
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1500,
+        system: buildSystemPrompt(city),
+>>>>>>> 2981ff1421d1bbc7677c3402bd48da37262eda1f
         messages: messages
       })
     });
 
+<<<<<<< HEAD
     console.log('Claude response status:', response.status);
 
     if (!response.ok) {
@@ -128,3 +174,27 @@ async function handlePlaces(request) {
 
 export { handleChat, handlePlaces };
 
+=======
+    if (!response.ok) {
+      const errText = await response.text();
+      return json({ reply: '[DEBUG] Claude API ' + response.status + ': ' + errText.slice(0, 300), sources: null, places: null });
+    }
+
+    const data = await response.json();
+    const reply = (data.content || [])
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('\n') || 'Maaf, tidak bisa menjawab.';
+
+    return json({ reply, sources: null, places: null });
+  } catch (err) {
+    return json({ reply: '[DEBUG] Error: ' + err.message, sources: null, places: null });
+  }
+}
+
+async function handlePlaces(request, env) {
+  return json({ places: [] });
+}
+
+export { handleChat, handlePlaces };
+>>>>>>> 2981ff1421d1bbc7677c3402bd48da37262eda1f
