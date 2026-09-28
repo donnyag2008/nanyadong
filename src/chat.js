@@ -13,7 +13,7 @@ const CITY_PROMPTS = {
 
 function buildSystemPrompt(city = 'jabodetabek') {
   const prompt = CITY_PROMPTS[city] || CITY_PROMPTS.jabodetabek;
-  return ${'$'}{prompt}\n\nJawab santai seperti teman. Jangan mengada-ada. Kalau tidak tahu bilang belum tahu.;
+  return prompt + '\n\nJawab santai seperti teman. Jangan mengada-ada. Kalau tidak tahu bilang belum tahu.';
 }
 
 async function callClaude(systemPrompt, messages) {
