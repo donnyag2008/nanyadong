@@ -1,84 +1,51 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_KEY;
-/* ========== CITY CONFIGURATIONS ========== */
+
 const CITY_PROMPTS = {
   jabodetabek: {
     intro: 'Kamu adalah teman lokal Jakarta, Bogor, Depok, Tangerang, Bekasi yang udah lama tinggal di sini.',
-    context: 'User tinggal atau bertanya tentang area Jabodetabek: Jakarta (Pusat, Selatan, Barat, Utara, Timur), Bogor, Depok, Tangerang, Bekasi, Cikarang.',
+    context: 'User tinggal atau bertanya tentang Jabodetabek: Jakarta, Bogor, Depok, Tangerang, Bekasi.',
     tone: 'Bahasa casual Jakarta style, saya/kamu register, santai kayak ngobrol temen.',
-    transport: 'Transport umum: Transjakarta (bus Rp3.500 flat), KRL (Rp3.000–9.000 tergantung jarak), MRT (Rp4.000–14.000), LRT Jakarta (Rp5.000), LRT Jabodebek (Rp5.000–20.000), ojol/motor taxi (Rp2.600–2.700/km, min Rp13.000), Grab/Gojek.',
-    landmarks: 'Tempat terkenal: Monas, Kota Tua, Senayan, Blok M, Kemang, Menteng, Senopati, BSD, Alam Sutra, Lippo Karawaci, PIK, Kelapa Gading, Pondok Indah, Fatmawati.',
-    cuisine: 'Kuliner khas: Soto Betawi, Gado-gado, Lumpia, Tahu Goreng, Martabak Pecenongan, Nasi Kucing, Kopi Susu, Teh Telur, Nasi Goreng, Perkedel, Bakso.',
-    rules: '- Kalau asal dari user cuma nama kawasan, bilang angka dihitung dari titik tengah kawasan itu\n- Jangan mengulang poin yang sama dua kali\n- Jangan menyimpulkan hal yang tidak ada di data\n- Tulis dengan kalimat sederhana dan jelas'
   },
   padang: {
-    intro: 'Kamu adalah teman lokal Padang dan sekitarnya (Padang Panjang, Pariaman, Air Tawar, Bukittinggi) yang udah lama tinggal di sini.',
-    context: 'User tinggal atau bertanya tentang Padang, Sumatera Barat: Padang Kota, Padang Panjang (pusat tekstil), Pariaman (pelabuhan), Air Tawar, Kampung Baru, Ulak Karang.',
-    tone: 'Bahasa casual Minang-Indonesia mix, saia/kau register, santai tapi kehangatan Minang style, ramah dan helpful.',
-    transport: 'Transport umum: Angkot/motor minibus (Rp3.000–5.000 murah), ojek lokal (Rp2.000–3.000/km), taksi lokal, jalan kaki. Belum ada sistem transit masal kayak Jakarta. Jarak Padang–Padang Panjang ~30km, ~1 jam angkot.',
-    landmarks: 'Tempat terkenal: Taman Lembah Hijau, Pantai Air Manis (legenda Mesukin), Danau Manjau, Pasar Raya Padang, Jam Gadang (Bukittinggi), Masjid Raya, Kampung Tua, Pulau Sikuai, Pasar Bungkus (Padang Panjang).',
-    cuisine: 'Kuliner khas: Rendang (premium Padang), Gulai Tambusu (hati sapi), Lumpia, Palemang, Perkedel, Nasi Padang (lengkap), Kuah Beulangong (kaldu tradisional), Durian Padang Panjang (musiman), Gula Aren, Kopi Padang.',
-    rules: '- Kamu kuasai Padang, Padang Panjang, sekitar Sumatera Barat\n- Jangan mengulang poin\n- Jangan buat data yang tidak ada\n- Tulis sederhana dan jelas'
+    intro: 'Kamu adalah teman lokal Padang dan sekitarnya (Padang Panjang, Pariaman) yang udah lama tinggal di sini.',
+    context: 'User tinggal atau bertanya tentang Padang, Sumatera Barat: Padang Kota, Padang Panjang, Pariaman.',
+    tone: 'Bahasa casual Minang-Indonesia, saia/kau register, santai dengan kehangatan Minang.',
   },
   batam: {
-    intro: 'Kamu adalah teman lokal Batam yang udah lama tinggal di sini dan tau soal kerja, ekspat, visa, contractor.',
-    context: 'User tinggal atau bertanya tentang Batam: Nagoya, Batam Center, Sekupang, Batu Ampar. Banyak pekerja O&G, ekspat, contractor rotating dari berbagai negara. Industri: minyak, gas, fabrikasi, manufaktur.',
-    tone: 'Bahasa Indonesia standard + casual, saia/saudara fleksibel, friendly ke ekspat/contractor mindset, praktis dan helpful.',
-    transport: 'Transport: Ojek lokal (Rp2.500–3.000), taksi terukur, mobil sewaan harian (~Rp300rb–500rb), ferry ke Singapura (Tanah Merah, Changi) & Malaysia (Johor Bahru). Belum metro/transit mass.',
-    landmarks: 'Tempat terkenal: Nagoya Hill Mall (shopping), Batam Center (pusat bisnis), Waterfront City (residensial & dining), Pantai Pasir Putih, Barelang Bridge (jembatan ikonik), Marina Bay, Pulau Penyengat (sejarah).',
-    cuisine: 'Kuliner lokal: Kuah Beulangong (kaldu Minang), Mie Koba (mie lokal), Seafood segar mentah (Nagoya area, harga Singapura nearby), Laksa Batam, Martabak, Fusion food lokal (banyak ekspat). Dekat Singapura jadi makanan internasional juga tersedia.',
-    rules: '- Kamu kuasai Batam dan industri O&G\n- Mention visa/contractor context kalau relevan\n- Jangan mengulang poin\n- Jangan buat data yang tidak ada\n- Tulis sederhana dan jelas'
+    intro: 'Kamu adalah teman lokal Batam yang udah lama tinggal di sini dan tau soal kerja, ekspat, visa.',
+    context: 'User tinggal atau bertanya tentang Batam: Nagoya, Batam Center, Sekupang. Banyak pekerja O&G, ekspat.',
+    tone: 'Bahasa Indonesia standard + casual, friendly ke ekspat/contractor, praktis dan helpful.',
   }
 };
 
 function buildSystemPrompt(city = 'jabodetabek') {
   const cfg = CITY_PROMPTS[city] || CITY_PROMPTS.jabodetabek;
   
-  return `Kamu adalah NanyaDong.com — teman lokal yang tau segalanya tentang Indonesia.
+  return `Kamu adalah NanyaDong.com — teman lokal yang tau segalanya.
 
 ${cfg.intro}
 
-## Konteks Kota
+## Konteks
 ${cfg.context}
 
-## Tone & Bahasa
+## Tone
 ${cfg.tone}
 
-## Transport & Logistik
-${cfg.transport}
-
-## Landmark & Geografi
-${cfg.landmarks}
-
-## Kuliner & Makanan Lokal
-${cfg.cuisine}
-
 ## Aturan
-${cfg.rules}
-
-## Tentang Dirimu
 - Tidak pernah mengada-ada atau buat data palsu
-- Kalau tidak tahu, bilang "belum tahu" atau "tidak ada info"
-- Fokus: tempat lokal, rekomendasi, tips praktis, info lokal
-- Selalu sebut nama tempat, area, atau landmark spesifik kalau bisa
-- Jangan bicara tentang topik yang jauh dari konteks kota
-
-## Response Format
-Jawab natural dan santai seperti chat teman. Kalau diminta rekomendasi tempat:
-- Sebut nama tempat + area
-- Alasan kenapa bagus
-- Kalau tahu: rating, harga range, jam buka, akses transport
-- Google Maps link kalau tersedia
+- Kalau tidak tahu, bilang "belum tahu"
+- Fokus: tempat lokal, rekomendasi, tips praktis
+- Jawab natural dan santai seperti chat teman
 `;
 }
 
-async function getTripInfo(origin, destination, city = 'jabodetabek') {
+async function getTripInfo(origin, destination) {
   if (!GOOGLE_API_KEY) {
     return '[DATA GOOGLE]\nGoogle API key tidak tersedia.';
   }
 
   try {
-    // Fetch routes from Google Routes API
     const routesRes = await fetch(
       `https://routes.googleapis.com/routes/v1:computeRoutes`,
       {
@@ -96,44 +63,31 @@ async function getTripInfo(origin, destination, city = 'jabodetabek') {
     );
 
     if (!routesRes.ok) {
-      return '[DATA GOOGLE]\nRute tidak ditemukan di Google Maps.';
+      return '[DATA GOOGLE]\nRute tidak ditemukan.';
     }
 
     const routesData = await routesRes.json();
-    let result = `[DATA GOOGLE]\n`;
+    let result = `[PERKIRAAN TRANSPORTASI]\n`;
 
     if (routesData.routes && routesData.routes.length > 0) {
-      result += `[PERKIRAAN TRANSPORTASI]\n`;
       routesData.routes.forEach((route, idx) => {
         const leg = route.legs[0];
-        const mode = ['DRIVE', 'TRANSIT'][idx];
+        const mode = idx === 0 ? 'DRIVE' : 'TRANSIT';
         if (leg) {
           const dist = leg.distanceMeters / 1000;
           const dur = Math.ceil(leg.duration.seconds / 60);
           result += `${mode === 'DRIVE' ? 'Mobil/Ojol' : 'Transit Umum'}: ${dur} menit (~${dist.toFixed(1)}km)\n`;
-          
-          if (mode === 'DRIVE') {
-            const fuelCost = Math.round(dist * 1500);
-            result += `  BBM estimasi: Rp${fuelCost.toLocaleString('id-ID')}\n`;
-            const ojolMin = 13000, ojolPerKm = 2650;
-            const ojolCost = Math.max(ojolMin, Math.round(dist * ojolPerKm));
-            result += `  Ojol estimasi: Rp${ojolCost.toLocaleString('id-ID')} (tanpa surge)\n`;
-          }
         }
       });
     }
 
     return result;
   } catch (err) {
-    return `[DATA GOOGLE]\nError: ${err.message}`;
+    return `[PERKIRAAN TRANSPORTASI]\nError: ${err.message}`;
   }
 }
 
 export async function handleChat(request) {
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
-  }
-
   let body;
   try {
     body = await request.json();
@@ -152,7 +106,7 @@ export async function handleChat(request) {
   const tools = [
     {
       name: 'get_trip_info',
-      description: 'Dapatkan informasi perjalanan: durasi, biaya, moda transportasi',
+      description: 'Dapatkan info perjalanan: durasi, biaya, transportasi',
       input_schema: {
         type: 'object',
         properties: {
@@ -164,15 +118,12 @@ export async function handleChat(request) {
     }
   ];
 
-  // Tool-use loop (max 2 iterations)
   let toolCalls = 0;
-  const maxToolCalls = 2;
   let conversationMessages = [...messages];
 
-  while (true) {
-    let response;
+  while (toolCalls < 2) {
     try {
-      response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,37 +140,31 @@ export async function handleChat(request) {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.text();
+        console.error('API Error:', errData);
         return new Response(
-          JSON.stringify({ error: 'API error', details: errData }),
-          { status: 500 }
+          JSON.stringify({ reply: 'Maaf, lagi ada gangguan. Coba nanya lagi ya!', sources: null, places: null }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
 
       const data = await response.json();
 
-      // Check for tool uses
       const toolUseBlocks = data.content.filter(b => b.type === 'tool_use');
-      if (toolUseBlocks.length === 0 || toolCalls >= maxToolCalls) {
-        // No more tool calls, extract final response
+      if (toolUseBlocks.length === 0) {
         const textBlocks = data.content.filter(b => b.type === 'text');
         const reply = textBlocks.length > 0 ? textBlocks[0].text : 'Maaf, tidak bisa menjawab.';
 
         return new Response(
-          JSON.stringify({
-            reply: reply,
-            sources: null,
-            places: null
-          }),
+          JSON.stringify({ reply: reply, sources: null, places: null }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
 
-      // Process tool calls
       const toolResults = [];
       for (const toolUse of toolUseBlocks) {
         if (toolUse.name === 'get_trip_info') {
-          const tripData = await getTripInfo(toolUse.input.origin, toolUse.input.destination, selectedCity);
+          const tripData = await getTripInfo(toolUse.input.origin, toolUse.input.destination);
           toolResults.push({
             type: 'tool_result',
             tool_use_id: toolUse.id,
@@ -228,7 +173,6 @@ export async function handleChat(request) {
         }
       }
 
-      // Add assistant response and tool results to conversation
       conversationMessages.push({
         role: 'assistant',
         content: data.content
@@ -240,19 +184,21 @@ export async function handleChat(request) {
 
       toolCalls++;
     } catch (err) {
+      console.error('Request Error:', err);
       return new Response(
-        JSON.stringify({ error: 'Request error', details: err.message }),
-        { status: 500 }
+        JSON.stringify({ reply: 'Maaf, lagi ada gangguan. Coba nanya lagi ya!', sources: null, places: null }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
   }
+
+  return new Response(
+    JSON.stringify({ reply: 'Maaf, tidak bisa menjawab.', sources: null, places: null }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
+  );
 }
 
 export async function handlePlaces(request) {
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
-  }
-
   let body;
   try {
     body = await request.json();
@@ -261,37 +207,34 @@ export async function handlePlaces(request) {
   }
 
   const { ids } = body;
-  if (!Array.isArray(ids)) {
-    return new Response(JSON.stringify({ error: 'ids must be an array' }), { status: 400 });
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return new Response(JSON.stringify({ places: [] }), { status: 200 });
   }
 
   if (!GOOGLE_API_KEY) {
-    return new Response(JSON.stringify({ error: 'Google API key not configured', places: [] }), { status: 200 });
+    return new Response(JSON.stringify({ places: [] }), { status: 200 });
   }
 
   try {
     const places = [];
     for (const id of ids) {
-      const res = await fetch(`https://places.googleapis.com/v1/places/${id}`, {
-        headers: { 'X-Goog-Api-Key': GOOGLE_API_KEY }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        places.push({
-          id: data.name,
-          name: data.displayName?.text,
-          address: data.formattedAddress,
-          rating: data.rating,
-          ratingCount: data.userRatingCount,
-          openNow: data.opening_hours?.openNow,
-          status: data.status,
-          photo: data.photos?.[0] ? {
-            url: data.photos[0].name ? `https://lh3.googleusercontent.com/${data.photos[0].name}` : null,
-            author: data.photos[0].attributions?.[0]?.displayName,
-            authorUrl: data.photos[0].attributions?.[0]?.uri
-          } : null,
-          mapsUrl: data.googleMapsUri
+      try {
+        const res = await fetch(`https://places.googleapis.com/v1/places/${id}`, {
+          headers: { 'X-Goog-Api-Key': GOOGLE_API_KEY }
         });
+        if (res.ok) {
+          const data = await res.json();
+          places.push({
+            id: data.name,
+            name: data.displayName?.text,
+            address: data.formattedAddress,
+            rating: data.rating,
+            ratingCount: data.userRatingCount,
+            mapsUrl: data.googleMapsUri
+          });
+        }
+      } catch (e) {
+        // Skip failed places
       }
     }
 
@@ -301,7 +244,7 @@ export async function handlePlaces(request) {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: 'Failed to fetch places', places: [] }),
+      JSON.stringify({ places: [] }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   }
