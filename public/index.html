@@ -93,6 +93,26 @@
   .city-btn svg { width: 14px; height: 14px; }
   .city-btn .pin { color: var(--kunyit); }
 
+  /* City dropdown menu */
+  .city-menu {
+    display: none;
+    position: fixed; top: 60px; right: 20px; z-index: 150;
+    background: #fff; border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    min-width: 160px;
+    overflow: hidden;
+  }
+  .city-menu.open { display: block; }
+  .city-option {
+    display: block; width: 100%; padding: 12px 16px;
+    border: none; background: transparent; text-align: left;
+    font-size: 14px; font-weight: 600; color: var(--ink);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .city-option:hover { background: var(--wash); }
+  .city-option.active { background: var(--serba-tint); color: var(--pandan); }
+
   /* ---------- Hero ---------- */
   .hero {
     position: relative;
@@ -502,9 +522,14 @@
     </a>
     <button class="city-btn" id="cityBtn" type="button">
       <svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-      Jabodetabek
+      <span id="cityLabel">Jabodetabek</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
+    <div class="city-menu" id="cityMenu">
+      <button class="city-option" data-city="jabodetabek" type="button">Jabodetabek</button>
+      <button class="city-option" data-city="padang" type="button">Padang</button>
+      <button class="city-option" data-city="batam" type="button">Batam</button>
+    </div>
   </div>
 </header>
 
@@ -515,8 +540,8 @@
     <div class="wrap hero-inner">
       <div>
         <p class="hero-tagline">Teman lokal yang tau segalanya</p>
-        <h1 class="hero-title">Mau nanya apa hari ini?</h1>
-        <p class="hero-sub">Tempat makan, tukang urut, hidden gems, kos-kosan — tanya kayak ke temen yang udah lama tinggal di Jabodetabek.</p>
+        <h1 class="hero-title" id="heroTitle">Mau nanya apa hari ini?</h1>
+        <p class="hero-sub" id="heroSub">Tempat makan, tukang urut, hidden gems, kos-kosan — tanya kayak ke temen yang udah lama tinggal di Jabodetabek.</p>
 
         <div class="chat-box">
           <div class="chat-input-wrap">
@@ -546,38 +571,7 @@
     <div class="wrap">
       <h2 class="section-title">Mulai dari sini</h2>
       <p class="section-sub">Pilih topik, atau langsung tanya di atas.</p>
-      <div class="categories">
-        <button class="cat-card" data-cat="kuliner" type="button" onclick="openChat('Rekomendasiin tempat makan atau nongkrong enak di Jabodetabek dong')">
-          <span class="cat-icon" aria-hidden="true">☕</span>
-          <span class="cat-title">Kuliner & nongkrong</span>
-          <span class="cat-desc">Cafe, warung, kopi, masakan daerah</span>
-        </button>
-        <button class="cat-card" data-cat="ahli" type="button" onclick="openChat('Cariin ahli atau spesialis yang bagus di Jabodetabek dong')">
-          <span class="cat-icon" aria-hidden="true">💆</span>
-          <span class="cat-title">Ahli & spesialis</span>
-          <span class="cat-desc">Pijit, urut, dokter, tukang</span>
-        </button>
-        <button class="cat-card" data-cat="tempat" type="button" onclick="openChat('Ada tempat menarik atau hidden gem di Jabodetabek yang belum banyak orang tau?')">
-          <span class="cat-icon" aria-hidden="true">🗺️</span>
-          <span class="cat-title">Tempat menarik</span>
-          <span class="cat-desc">Hidden gems, bukan wisata biasa</span>
-        </button>
-        <button class="cat-card" data-cat="hunian" type="button" onclick="openChat('Cariin info kos-kosan atau kontrakan murah di Jabodetabek dong')">
-          <span class="cat-icon" aria-hidden="true">🏠</span>
-          <span class="cat-title">Hunian</span>
-          <span class="cat-desc">Kos, kontrakan, info harga</span>
-        </button>
-        <button class="cat-card" data-cat="info" type="button" onclick="openChat('Ada info macet, banjir, atau keributan di Jabodetabek hari ini?')">
-          <span class="cat-icon" aria-hidden="true">🚦</span>
-          <span class="cat-title">Info sekitar</span>
-          <span class="cat-desc">Macet, banjir, demo, keributan</span>
-        </button>
-        <button class="cat-card" data-cat="serba" type="button" onclick="openChat('Butuh rekomendasi jasa atau tempat servis di Jabodetabek')">
-          <span class="cat-icon" aria-hidden="true">🔧</span>
-          <span class="cat-title">Serba-serbi</span>
-          <span class="cat-desc">Laundry, bengkel, notaris, dll</span>
-        </button>
-      </div>
+      <div class="categories" id="categoriesContainer"></div>
     </div>
   </section>
 
@@ -631,7 +625,133 @@
 </div>
 
 <script>
-  /* ---------- Content ---------- */
+  /* ---------- City Configuration ---------- */
+  const CITIES = {
+    jabodetabek: {
+      label: 'Jabodetabek',
+      heroTitle: 'Mau nanya apa hari ini?',
+      heroSub: 'Tempat makan, tukang urut, hidden gems, kos-kosan — tanya kayak ke temen yang udah lama tinggal di Jabodetabek.',
+      thread: [
+        { cat: 'kuliner', q: 'Kopi susu gula aren paling enak di Jaksel di mana?' },
+        { cat: 'ahli',    q: 'Tukang urut saraf kejepit deket Cibubur ada gak?' },
+        { cat: 'hunian',  q: 'Kos buat pegawai di BSD kisaran berapa sebulan?' },
+        { cat: 'info',    q: 'Sudirman hari ini macet parah gak?' },
+        { cat: 'serba',   q: 'Bengkel motor yang jujur di Depok?' },
+        { cat: 'tempat',  q: 'Hidden gem buat weekend di Bogor?' },
+        { cat: 'kuliner', q: 'Nasi Padang rasa asli di Bekasi yang mana?' },
+        { cat: 'ahli',    q: 'Tukang jahit kebaya yang rapi di Jaksel?' }
+      ],
+      questions: [
+        { cat: 'kuliner', title: 'Kopi susu gula aren terbaik di Jaksel', ask: 'Kopi susu gula aren terbaik di Jakarta Selatan di mana ya?' },
+        { cat: 'ahli',    title: 'Tukang urut saraf kejepit yang manjur', ask: 'Tukang urut saraf kejepit yang bagus di Jabodetabek di mana ya?' },
+        { cat: 'tempat',  title: 'Cafe baru yang lagi hits di Kemang', ask: 'Tempat nongkrong baru yang lagi hits di Kemang atau Senopati?' },
+        { cat: 'hunian',  title: 'Kos murah di Tangerang & Depok buat pegawai', ask: 'Rekomendasi kos-kosan murah di Tangerang atau Depok buat pegawai dong' },
+        { cat: 'kuliner', title: 'Nasi Padang rasa asli Padang di Jabodetabek', ask: 'Nasi Padang paling enak di Jabodetabek yang mirip rasa asli Padang di mana?' },
+        { cat: 'kuliner', title: 'Teh telur mantap di Jabodetabek', ask: 'Di mana bisa dapat teh telur yang mantap di Jabodetabek?' },
+        { cat: 'kuliner', title: 'Martabak Pecenongan yang paling enak', ask: 'Martabak Pecenongan yang paling enak yang mana sih? Ada rekomendasi?' },
+        { cat: 'kuliner', title: 'Nasi goreng paling sedap dan legendaris', ask: 'Nasi goreng paling sedap di Jabodetabek di mana ya? Yang legendaris' },
+        { cat: 'tempat',  title: 'Sarapan pagi asyik buat weekend', ask: 'Tempat sarapan pagi yang asyik dan enak di Jabodetabek? Buat weekend' }
+      ],
+      categories: [
+        { cat: 'kuliner', ask: 'Rekomendasiin tempat makan atau nongkrong enak di Jabodetabek dong' },
+        { cat: 'ahli',    ask: 'Cariin ahli atau spesialis yang bagus di Jabodetabek dong' },
+        { cat: 'tempat',  ask: 'Ada tempat menarik atau hidden gem di Jabodetabek yang belum banyak orang tau?' },
+        { cat: 'hunian',  ask: 'Cariin info kos-kosan atau kontrakan murah di Jabodetabek dong' },
+        { cat: 'info',    ask: 'Ada info macet, banjir, atau keributan di Jabodetabek hari ini?' },
+        { cat: 'serba',   ask: 'Butuh rekomendasi jasa atau tempat servis di Jabodetabek' }
+      ],
+      placeholders: [
+        'Cari tempat makan, tukang pijit, kos-kosan...',
+        'Martabak paling enak di Pecenongan?',
+        'Tukang urut deket BSD ada?',
+        'Cafe buat kerja yang tenang di Jaksel?',
+        'Laundry kiloan murah di Depok?'
+      ]
+    },
+    padang: {
+      label: 'Padang',
+      heroTitle: 'Mau nanya apa hari ini?',
+      heroSub: 'Tempat makan, tukang urut, hidden gems, kos-kosan — tanya kayak ke temen yang udah lama tinggal di Padang.',
+      thread: [
+        { cat: 'kuliner', q: 'Rendang paling enak di Padang yang mana?' },
+        { cat: 'kuliner', q: 'Gulai tambusu terbaik di Padang Panjang?' },
+        { cat: 'ahli',    q: 'Tukang urut yang bagus di Air Tawar deket mana?' },
+        { cat: 'tempat',  q: 'Pantai yang bagus buat liburan keluarga di Padang?' },
+        { cat: 'hunian',  q: 'Kos-kosan di sekitar kampus Ada berapa kisarannya?' },
+        { cat: 'info',    q: 'Sungai Batang Arau banjir gak musim ini?' },
+        { cat: 'serba',   q: 'Bengkel motor terpercaya di Pariaman?' },
+        { cat: 'kuliner', q: 'Durian terbaik dari mana di Padang Panjang?' }
+      ],
+      questions: [
+        { cat: 'kuliner', title: 'Rendang paling enak di Padang Kota', ask: 'Rendang paling enak di Padang Kota yang mana sih?' },
+        { cat: 'kuliner', title: 'Gulai tambusu autentik di Padang Panjang', ask: 'Gulai tambusu yang paling autentik di Padang Panjang di mana?' },
+        { cat: 'tempat',  title: 'Pantai bagus buat liburan keluarga', ask: 'Pantai yang bagus buat liburan keluarga di Padang yang mana?' },
+        { cat: 'hunian',  title: 'Kos-kosan murah di sekitar kampus', ask: 'Kos-kosan murah di sekitar kampus Unand atau Politeknik Ada?' },
+        { cat: 'ahli',    title: 'Tukang urut yang bagus di Air Tawar', ask: 'Tukang urut atau tukang pijat yang bagus di Air Tawar mana ya?' },
+        { cat: 'kuliner', title: 'Nasi Padang paling mantap', ask: 'Nasi Padang paling mantap dan lengkap di Padang kota yang mana?' },
+        { cat: 'info',    title: 'Banjir musiman di Padang', ask: 'Biasanya banjir terjadi di mana-mana di Padang musim ini?' },
+        { cat: 'serba',   title: 'Toko emas terpercaya di Padang', ask: 'Ada toko emas yang terpercaya dan harga jujur di Padang?' },
+        { cat: 'tempat',  title: 'Tempat belanja tekstil di Padang Panjang', ask: 'Tempat belanja kain atau tekstil murah bagus di Padang Panjang?' }
+      ],
+      categories: [
+        { cat: 'kuliner', ask: 'Rekomendasiin tempat makan atau nongkrong enak di Padang dong' },
+        { cat: 'ahli',    ask: 'Cariin ahli atau spesialis yang bagus di Padang dong' },
+        { cat: 'tempat',  ask: 'Ada tempat menarik atau hidden gem di Padang yang belum banyak orang tau?' },
+        { cat: 'hunian',  ask: 'Cariin info kos-kosan atau kontrakan murah di Padang dong' },
+        { cat: 'info',    ask: 'Ada info macet, banjir, atau keributan di Padang hari ini?' },
+        { cat: 'serba',   ask: 'Butuh rekomendasi jasa atau tempat servis di Padang' }
+      ],
+      placeholders: [
+        'Rendang paling enak di Padang?',
+        'Gulai tambusu terbaik di Padang Panjang?',
+        'Pantai bagus buat liburan di Padang?',
+        'Kos-kosan deket Unand harganya berapa?',
+        'Tukang jahit yang rapi di Padang?'
+      ]
+    },
+    batam: {
+      label: 'Batam',
+      heroTitle: 'Mau nanya apa hari ini?',
+      heroSub: 'Tempat makan, layanan lokal, tips kerja, hidden gems — tanya kayak ke temen yang udah lama tinggal di Batam.',
+      thread: [
+        { cat: 'kuliner', q: 'Kuah beulangong yang paling enak di Batam?' },
+        { cat: 'kuliner', q: 'Seafood segar murah di Nagoya mana yang bagus?' },
+        { cat: 'ahli',    q: 'Dokter gigi yang terpercaya di Batam Center?' },
+        { cat: 'tempat',  q: 'Pantai indah buat liburan akhir pekan di Batam?' },
+        { cat: 'hunian',  q: 'Apartemen buat kontrak bulanan di Nagoya area?' },
+        { cat: 'info',    q: 'Visa kerja atau izin tinggal mudah di Batam?' },
+        { cat: 'serba',   q: 'Kantor imigrasi atau perpanjangan visa Batam mana?' },
+        { cat: 'kuliner', q: 'Mie koba atau laksa Batam terbaik di mana?' }
+      ],
+      questions: [
+        { cat: 'kuliner', title: 'Kuah beulangong paling enak di Batam', ask: 'Kuah beulangong yang paling enak dan asli di Batam yang mana?' },
+        { cat: 'kuliner', title: 'Seafood segar murah di Nagoya', ask: 'Tempat seafood segar dan murah di area Nagoya Batam yang mana?' },
+        { cat: 'tempat',  title: 'Pantai indah buat liburan akhir pekan', ask: 'Pantai yang indah dan nyaman buat liburan akhir pekan di Batam?' },
+        { cat: 'hunian',  title: 'Apartemen kontrak bulanan di Nagoya', ask: 'Apartemen yang bisa dikontrak bulanan dengan harga terjangkau di Nagoya area?' },
+        { cat: 'info',    title: 'Informasi visa kerja di Batam', ask: 'Bagaimana proses izin kerja atau visa di Batam? Ada yang mudah?' },
+        { cat: 'ahli',    title: 'Dokter gigi terpercaya di Batam Center', ask: 'Ada dokter gigi yang terpercaya dan harga adil di Batam Center?' },
+        { cat: 'kuliner', title: 'Mie koba autentik Batam', ask: 'Mie koba atau mie Batam asli yang paling enak di mana?' },
+        { cat: 'serba',   title: 'Kantor imigrasi dan perpanjangan izin', ask: 'Kantor imigrasi Batam di mana dan prosesnya gimana?' },
+        { cat: 'tempat',  title: 'Mall atau tempat belanja di Batam', ask: 'Tempat belanja atau mall yang bagus di Batam yang mana?' }
+      ],
+      categories: [
+        { cat: 'kuliner', ask: 'Rekomendasiin tempat makan atau nongkrong enak di Batam dong' },
+        { cat: 'ahli',    ask: 'Cariin ahli atau spesialis yang bagus di Batam dong' },
+        { cat: 'tempat',  ask: 'Ada tempat menarik atau hidden gem di Batam yang belum banyak orang tau?' },
+        { cat: 'hunian',  ask: 'Cariin info apartemen atau kontrakan murah di Batam dong' },
+        { cat: 'info',    ask: 'Ada info tentang kerja, visa, atau layanan di Batam?' },
+        { cat: 'serba',   ask: 'Butuh rekomendasi jasa atau tempat servis di Batam' }
+      ],
+      placeholders: [
+        'Kuah beulangong terbaik di Batam?',
+        'Seafood murah di Nagoya Batam?',
+        'Pantai bagus di Batam untuk liburan?',
+        'Apartemen kontrak bulanan di Batam?',
+        'Info visa kerja di Batam?'
+      ]
+    }
+  };
+
   const CATS = {
     kuliner: { label: 'Kuliner & nongkrong', emoji: '☕', color: 'var(--kuliner)', tint: 'var(--kuliner-tint)' },
     ahli:    { label: 'Ahli & spesialis',    emoji: '💆', color: 'var(--ahli)',    tint: 'var(--ahli-tint)' },
@@ -641,65 +761,103 @@
     serba:   { label: 'Serba-serbi',         emoji: '🔧', color: 'var(--serba)',   tint: 'var(--serba-tint)' }
   };
 
-  // Cards below the categories (same questions as before)
-  const QUESTIONS = [
-    { cat: 'kuliner', title: 'Kopi susu gula aren terbaik di Jaksel', ask: 'Kopi susu gula aren terbaik di Jakarta Selatan di mana ya?' },
-    { cat: 'ahli',    title: 'Tukang urut saraf kejepit yang manjur', ask: 'Tukang urut saraf kejepit yang bagus di Jabodetabek di mana ya?' },
-    { cat: 'tempat',  title: 'Cafe baru yang lagi hits di Kemang', ask: 'Tempat nongkrong baru yang lagi hits di Kemang atau Senopati?' },
-    { cat: 'hunian',  title: 'Kos murah di Tangerang & Depok buat pegawai', ask: 'Rekomendasi kos-kosan murah di Tangerang atau Depok buat pegawai dong' },
-    { cat: 'kuliner', title: 'Nasi Padang rasa asli Padang di Jabodetabek', ask: 'Nasi Padang paling enak di Jabodetabek yang mirip rasa asli Padang di mana?' },
-    { cat: 'kuliner', title: 'Teh telur mantap di Jabodetabek', ask: 'Di mana bisa dapat teh telur yang mantap di Jabodetabek?' },
-    { cat: 'kuliner', title: 'Martabak Pecenongan yang paling enak', ask: 'Martabak Pecenongan yang paling enak yang mana sih? Ada rekomendasi?' },
-    { cat: 'kuliner', title: 'Nasi goreng paling sedap dan legendaris', ask: 'Nasi goreng paling sedap di Jabodetabek di mana ya? Yang legendaris' },
-    { cat: 'tempat',  title: 'Sarapan pagi asyik buat weekend', ask: 'Tempat sarapan pagi yang asyik dan enak di Jabodetabek? Buat weekend' }
-  ];
-
-  // Example questions cycling in the hero (desktop)
-  const THREAD = [
-    { cat: 'kuliner', q: 'Kopi susu gula aren paling enak di Jaksel di mana?' },
-    { cat: 'ahli',    q: 'Tukang urut saraf kejepit deket Cibubur ada gak?' },
-    { cat: 'hunian',  q: 'Kos buat pegawai di BSD kisaran berapa sebulan?' },
-    { cat: 'info',    q: 'Sudirman hari ini macet parah gak?' },
-    { cat: 'serba',   q: 'Bengkel motor yang jujur di Depok?' },
-    { cat: 'tempat',  q: 'Hidden gem buat weekend di Bogor?' },
-    { cat: 'kuliner', q: 'Nasi Padang rasa asli di Bekasi yang mana?' },
-    { cat: 'ahli',    q: 'Tukang jahit kebaya yang rapi di Jaksel?' }
-  ];
-
-  const PLACEHOLDERS = [
-    'Cari tempat makan, tukang pijit, kos-kosan...',
-    'Martabak paling enak di Pecenongan?',
-    'Tukang urut deket BSD ada?',
-    'Cafe buat kerja yang tenang di Jaksel?',
-    'Laundry kiloan murah di Depok?'
-  ];
-
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---------- Render question cards ---------- */
-  const qGrid = document.getElementById('qGrid');
-  QUESTIONS.forEach(item => {
-    const c = CATS[item.cat];
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'q-card';
-    btn.dataset.cat = item.cat;
-    btn.innerHTML = `
-      <span class="q-badge" aria-hidden="true">${c.emoji}</span>
-      <span class="q-body">
-        <span class="q-title" style="display:block"></span>
-        <span class="q-meta" style="display:block">${c.label}</span>
-      </span>
-      <svg class="q-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`;
-    btn.querySelector('.q-title').textContent = item.title;
-    btn.addEventListener('click', () => openChat(item.ask));
-    qGrid.appendChild(btn);
+  /* ---------- City switching ---------- */
+  let currentCity = localStorage.getItem('nanyadong-city') || 'jabodetabek';
+  const cityBtn = document.getElementById('cityBtn');
+  const cityMenu = document.getElementById('cityMenu');
+  const cityLabel = document.getElementById('cityLabel');
+  const cityOptions = document.querySelectorAll('.city-option');
+
+  function setCity(cityKey) {
+    if (!CITIES[cityKey]) return;
+    currentCity = cityKey;
+    localStorage.setItem('nanyadong-city', cityKey);
+    const city = CITIES[cityKey];
+    
+    cityLabel.textContent = city.label;
+    document.getElementById('heroTitle').textContent = city.heroTitle;
+    document.getElementById('heroSub').textContent = city.heroSub;
+    
+    cityOptions.forEach(opt => opt.classList.toggle('active', opt.dataset.city === cityKey));
+    
+    renderQuestions();
+    renderCategories();
+    renderThread();
+    updatePlaceholders();
+    
+    cityMenu.classList.remove('open');
+  }
+
+  cityBtn.addEventListener('click', () => {
+    cityMenu.classList.toggle('open');
   });
 
-  /* ---------- Hero thread ---------- */
-  const threadList = document.getElementById('threadList');
-  const MAX_BUBBLES = 5;
-  let threadIdx = 0;
+  cityOptions.forEach(opt => {
+    opt.addEventListener('click', () => {
+      setCity(opt.dataset.city);
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.city-btn') && !e.target.closest('.city-menu')) {
+      cityMenu.classList.remove('open');
+    }
+  });
+
+  /* ---------- Render sections ---------- */
+  function renderQuestions() {
+    const qGrid = document.getElementById('qGrid');
+    const city = CITIES[currentCity];
+    qGrid.innerHTML = '';
+    city.questions.forEach(item => {
+      const c = CATS[item.cat];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'q-card';
+      btn.dataset.cat = item.cat;
+      btn.innerHTML = `
+        <span class="q-badge" aria-hidden="true">${c.emoji}</span>
+        <span class="q-body">
+          <span class="q-title" style="display:block"></span>
+          <span class="q-meta" style="display:block">${c.label}</span>
+        </span>
+        <svg class="q-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`;
+      btn.querySelector('.q-title').textContent = item.title;
+      btn.addEventListener('click', () => openChat(item.ask));
+      qGrid.appendChild(btn);
+    });
+  }
+
+  function renderCategories() {
+    const cat = document.getElementById('categoriesContainer');
+    const city = CITIES[currentCity];
+    cat.innerHTML = '';
+    city.categories.forEach(item => {
+      const c = CATS[item.cat];
+      const btn = document.createElement('button');
+      btn.className = 'cat-card';
+      btn.type = 'button';
+      btn.dataset.cat = item.cat;
+      btn.innerHTML = `
+        <span class="cat-icon" aria-hidden="true">${c.emoji}</span>
+        <span class="cat-title">${c.label.split('&')[0].trim()}</span>
+        <span class="cat-desc">${c.label.split('&')[1] ? c.label.split('&')[1].trim() : ''}</span>`;
+      btn.addEventListener('click', () => openChat(item.ask));
+      cat.appendChild(btn);
+    });
+  }
+
+  function renderThread() {
+    const threadList = document.getElementById('threadList');
+    const city = CITIES[currentCity];
+    threadList.innerHTML = '';
+    const MAX_BUBBLES = 5;
+    for (let i = 0; i < Math.min(MAX_BUBBLES, city.thread.length); i++) {
+      threadList.appendChild(makeBubble(city.thread[i], false));
+    }
+  }
 
   function makeBubble(item, animate) {
     const c = CATS[item.cat];
@@ -714,24 +872,21 @@
     return b;
   }
 
-  function addThreadBubble(animate) {
-    const item = THREAD[threadIdx % THREAD.length];
-    threadIdx++;
-    threadList.appendChild(makeBubble(item, animate));
-    while (threadList.children.length > MAX_BUBBLES) threadList.removeChild(threadList.firstElementChild);
+  let phIdx = 0;
+  function updatePlaceholders() {
+    const city = CITIES[currentCity];
+    const mainInput = document.getElementById('mainInput');
+    phIdx = 0;
+    mainInput.placeholder = city.placeholders[0];
   }
 
-  for (let i = 0; i < MAX_BUBBLES; i++) addThreadBubble(false);
-  if (!reduceMotion) setInterval(() => { if (!document.hidden) addThreadBubble(true); }, 3200);
-
-  /* ---------- Rotating placeholder ---------- */
   const mainInput = document.getElementById('mainInput');
-  let phIdx = 0;
   if (!reduceMotion) {
     setInterval(() => {
       if (document.activeElement === mainInput || mainInput.value) return;
-      phIdx = (phIdx + 1) % PLACEHOLDERS.length;
-      mainInput.placeholder = PLACEHOLDERS[phIdx];
+      const city = CITIES[currentCity];
+      phIdx = (phIdx + 1) % city.placeholders.length;
+      mainInput.placeholder = city.placeholders[phIdx];
     }, 2800);
   }
 
@@ -744,45 +899,42 @@
   const mainSend = document.getElementById('mainSend');
   const typingIndicator = document.getElementById('typingIndicator');
 
-  const GREETING = 'Halo! NanyaDong.com, teman lokal mu di Jabodetabek! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun soal Jakarta, Bogor, Depok, Tangerang, Bekasi. Nanya aja! 😊';
+  const GREETING = 'Halo! NanyaDong.com, teman lokal mu! Mau nanya apa aja — tempat makan, tukang pijit, hidden gems, kos-kosan, atau info apa pun lokal. Nanya aja! 😊';
   const STORE_KEY = 'nanyadong-chat-v1';
   const resumeBtn = document.getElementById('resumeBtn');
 
-  let conversationHistory = []; // sent to the API
-  let chatLog = [];             // what the user sees (incl. cards & sources)
+  let conversationHistory = [];
+  let chatLog = [];
   let rendered = false;
   let sending = false;
 
-  // ---- Keep the chat on this device (survives closing the chat or the browser)
   function saveChat() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         history: conversationHistory.slice(-24),
         log: chatLog.slice(-40)
       }));
-    } catch (e) { /* storage full or blocked: chat still works */ }
+    } catch (e) { /* storage full or blocked */ }
     updateResume();
   }
+
   function loadChat() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
       if (saved && Array.isArray(saved.history) && Array.isArray(saved.log)) {
         conversationHistory = saved.history;
-        // Google only allows keeping place IDs: drop any stored card details
-        let migrated = false;
         chatLog = saved.log.map(m => {
           if (m && Array.isArray(m.places)) {
-            migrated = true;
             const { places, ...rest } = m;
             return { ...rest, placeIds: places.map(p => p && p.id).filter(Boolean) };
           }
           return m;
         });
-        if (migrated) saveChat();
       }
     } catch (e) { conversationHistory = []; chatLog = []; }
     updateResume();
   }
+
   function updateResume() {
     resumeBtn.classList.toggle('show', chatLog.length > 0);
   }
@@ -800,12 +952,10 @@
     if (!chatOverlay.classList.contains('open')) {
       chatOverlay.classList.add('open');
       document.body.style.overflow = 'hidden';
-      // Phone back button closes the chat instead of leaving the site
       try { history.pushState({ nanyaChat: true }, ''); } catch (e) {}
     }
     if (!rendered) renderChat();
     scrollToBottom();
-
     if (prefill) setTimeout(() => sendMessage(prefill), 300);
     else chatInput.focus();
   }
@@ -816,7 +966,7 @@
   }
 
   function closeChat() {
-    if (history.state && history.state.nanyaChat) history.back(); // triggers popstate → hideChat
+    if (history.state && history.state.nanyaChat) history.back();
     else hideChat();
   }
 
@@ -852,7 +1002,6 @@
       const card = document.createElement('div');
       card.className = 'place-card';
 
-      // Photo
       const ph = document.createElement('div');
       ph.className = 'place-photo';
       if (p.photo && /^https:\/\//.test(p.photo.url)) {
@@ -867,7 +1016,6 @@
         ph.textContent = '📍';
       }
 
-      // Status badge
       let badge = null;
       if (p.status === 'CLOSED_PERMANENTLY') badge = ['Tutup permanen', 'closed'];
       else if (p.status === 'CLOSED_TEMPORARILY') badge = ['Tutup sementara', 'warn'];
@@ -881,7 +1029,6 @@
       }
       card.appendChild(ph);
 
-      // Body
       const body = document.createElement('div');
       body.className = 'place-body';
       const name = document.createElement('div');
@@ -915,7 +1062,6 @@
       }
       card.appendChild(body);
 
-      // Photo credit (required by Google)
       if (p.photo && p.photo.author) {
         const cr = document.createElement('div');
         cr.className = 'place-credit';
@@ -936,7 +1082,6 @@
 
     if (!row.children.length) return null;
 
-    // Scroller with left/right arrows (shown only on desktop, only when there is more to see)
     const scroller = document.createElement('div');
     scroller.className = 'place-scroller';
     const mkBtn = (dir, label, symbol) => {
@@ -970,7 +1115,6 @@
     return wrap;
   }
 
-  // Old chats keep only place IDs; this button fetches fresh cards when wanted
   function buildRestoreButton(placeIds) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1001,7 +1145,6 @@
 
   function addMessage(type, text, sources, places, persist, placeIds) {
     if (persist) {
-      // Store only place IDs (allowed by Google); details are re-fetched on demand
       const ids = Array.isArray(places) ? places.map(p => p && p.id).filter(Boolean) : [];
       chatLog.push({ type, text, sources: sources || null, placeIds: ids.length ? ids : null });
       saveChat();
@@ -1056,7 +1199,7 @@
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversationHistory, city: 'Jabodetabek' })
+        body: JSON.stringify({ messages: conversationHistory, city: currentCity })
       });
       const data = await res.json();
       const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
@@ -1065,7 +1208,7 @@
         conversationHistory.push({ role: 'assistant', content: reply });
         addMessage('bot', reply, data.sources, data.places, true);
       } else {
-        conversationHistory.pop(); // don't keep a question that got no answer
+        conversationHistory.pop();
         saveChat();
         addMessage('bot', reply, null, null, false);
       }
@@ -1091,6 +1234,9 @@
 
   chatSend.addEventListener('click', () => sendMessage(chatInput.value));
   chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(chatInput.value); });
+
+  /* Initial render */
+  setCity(currentCity);
 </script>
 
 </body>
