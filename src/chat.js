@@ -103,14 +103,8 @@ async function askClaude(env, messages, city, userGeo) {
       type: 'web_search_20250305',
       name: 'web_search',
       max_uses: LIMITS.maxSearches,
-      // Search results localised to Jakarta, even for diaspora users abroad
-      user_location: {
-        type: 'approximate',
-        city: 'Jakarta',
-        region: 'DKI Jakarta',
-        country: 'ID',
-        timezone: 'Asia/Jakarta'
-      }
+            // Search results localised to the chosen city, even for diaspora users abroad
+      user_location: cityProfile(city).searchLocation
     }, PLACE_CARDS_TOOL, TRIP_TOOL]
   };
 
@@ -222,6 +216,35 @@ async function askClaude(env, messages, city, userGeo) {
   return { reply, sources, placeHints };
 }
 
+// Per-city settings. The dropdown may send "Padang", "padang" etc., so matching is tolerant.
+const CITY_PROFILES = {
+  jabodetabek: {
+    name: 'Jabodetabek',
+    areas: 'Jakarta, Bogor, Depok, Tangerang, Bekasi',
+    notes: '',
+    searchLocation: { type: 'approximate', city: 'Jakarta', region: 'DKI Jakarta', country: 'ID', timezone: 'Asia/Jakarta' }
+  },
+  padang: {
+    name: 'Padang',
+    areas: 'Kota Padang, Padang Panjang, Bukittinggi, Pesisir Selatan, Sumatera Barat',
+    notes: 'KONTEKS KOTA: Fokus Kota Padang dan sekitarnya. Kuliner Minang sangat penting (rendang, gulai, sate Padang). Transportasi umum terbatas: angkot, ojek, taksi online. Jangan mengarang tarif atau rute, cek lewat pencarian.',
+    searchLocation: { type: 'approximate', city: 'Padang', region: 'West Sumatra', country: 'ID', timezone: 'Asia/Jakarta' }
+  },
+  batam: {
+    name: 'Batam',
+    areas: 'Batam Center, Nagoya, Jodoh, Batu Aji, Sekupang',
+    notes: 'KONTEKS KOTA: Fokus Batam. Banyak pekerja industri dan migas serta ekspat yang bergiliran kerja, jadi tempat kerja nyaman, makanan halal, dan akomodasi sering relevan. Info visa atau izin hanya kalau ditanya, dan selalu arahkan cek ke sumber resmi. Jangan mengarang tarif atau rute.',
+    searchLocation: { type: 'approximate', city: 'Batam', region: 'Riau Islands', country: 'ID', timezone: 'Asia/Jakarta' }
+  }
+};
+
+function cityProfile(city) {
+  const c = String(city || '').toLowerCase();
+  if (c.includes('padang')) return CITY_PROFILES.padang;
+  if (c.includes('batam')) return CITY_PROFILES.batam;
+  return CITY_PROFILES.jabodetabek;
+}
+
 function buildSystemPrompt(city, userGeo) {
   const now = new Date().toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
@@ -232,13 +255,13 @@ function buildSystemPrompt(city, userGeo) {
   const where = [userGeo.city, userGeo.region, userGeo.country].filter(Boolean).join(', ') || 'tidak diketahui';
   const abroad = userGeo.country && userGeo.country !== 'ID';
 
-  return `Kamu adalah NanyaDong — "teman lokal yang tau segalanya" untuk wilayah ${city} (Jakarta, Bogor, Depok, Tangerang, Bekasi).
+  return `Kamu adalah NanyaDong — "teman lokal yang tau segalanya" untuk wilayah ${cityProfile(city).name} (${cityProfile(city).areas}). ${cityProfile(city).notes}  ATURAN TEMPAT TUTUP: Jangan rekomendasikan tempat yang sudah tutup permanen atau pindah. Kalau hasil pencarian menyebut tutup permanen, pindah, atau tidak aktif, jangan masukkan. Kalau tidak yakin masih buka, bilang jujur "cek dulu ya sebelum ke sana".
 
 SEKARANG: ${now} WIB.
 PERKIRAAN LOKASI USER: ${where}.${abroad ? ' User kemungkinan orang Indonesia di luar negeri atau sedang merencanakan perjalanan — jangan anggap dia sedang di Jakarta sekarang.' : ''}
 
 KEPRIBADIAN
-- Ngomong kayak temen yang udah lama tinggal di Jabodetabek: santai, hangat, to the point.
+- Ngomong kayak temen yang udah lama tinggal di ${cityProfile(city).name}: santai, hangat, to the point.
 - Selalu pakai "saya/kamu". Kalau user formal atau terkesan lebih tua, pakai "saya/Anda".
 - JANGAN PERNAH pakai "lu", "lo", "elo", "gue", atau "gua", bahkan kalau user sendiri pakai kata-kata itu. Tetap santai dan hangat, tapi sopan.
 - Kalau user nulis dalam English, jawab dalam English yang santai.
@@ -433,7 +456,7 @@ async function lookupOne(env, hint) {
     return null;
   }
 
-  return buildCard(env, p, hint.area);
+  // Never show a place that Google says has closed for good   if (p.businessStatus === 'CLOSED_PERMANENTLY') {     console.log('places: permanently closed, skipped', p.displayName && p.displayName.text);     return null;   }   return buildCard(env, p, hint.area);
 }
 
 // Turn a Places API (New) place object into the card the browser renders
