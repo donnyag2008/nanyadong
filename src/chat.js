@@ -81,7 +81,7 @@ export async function handleChat(request, env) {
     // 5. Call Claude
     const { reply, sources, placeHints } = await askClaude(env, messages, city, userGeo);
     console.log('places hints', JSON.stringify(placeHints));
-    const places = await lookupPlaces(env, placeHints);
+    const places = await lookupPlaces(env, placeHints, city);
     return json({ reply, sources, places });
 
   } catch (err) {
@@ -222,19 +222,29 @@ const CITY_PROFILES = {
     name: 'Jabodetabek',
     areas: 'Jakarta, Bogor, Depok, Tangerang, Bekasi',
     notes: '',
-    searchLocation: { type: 'approximate', city: 'Jakarta', region: 'DKI Jakarta', country: 'ID', timezone: 'Asia/Jakarta' }
+    searchLocation: { type: 'approximate', city: 'Jakarta', region: 'DKI Jakarta', country: 'ID', timezone: 'Asia/Jakarta' },
+    bias: { latitude: -6.2, longitude: 106.83, radius: 50000 }
   },
   padang: {
     name: 'Padang',
     areas: 'Kota Padang, Padang Panjang, Bukittinggi, Pesisir Selatan, Sumatera Barat',
     notes: 'KONTEKS KOTA: Fokus Kota Padang dan sekitarnya. Kuliner Minang sangat penting (rendang, gulai, sate Padang). Transportasi umum terbatas: angkot, ojek, taksi online. Jangan mengarang tarif atau rute, cek lewat pencarian.',
-    searchLocation: { type: 'approximate', city: 'Padang', region: 'West Sumatra', country: 'ID', timezone: 'Asia/Jakarta' }
+    searchLocation: { type: 'approximate', city: 'Padang', region: 'West Sumatra', country: 'ID', timezone: 'Asia/Jakarta' },
+    bias: { latitude: -0.9471, longitude: 100.4172, radius: 40000 }
   },
   batam: {
     name: 'Batam',
     areas: 'Batam Center, Nagoya, Jodoh, Batu Aji, Sekupang',
     notes: 'KONTEKS KOTA: Fokus Batam. Banyak pekerja industri dan migas serta ekspat yang bergiliran kerja, jadi tempat kerja nyaman, makanan halal, dan akomodasi sering relevan. Info visa atau izin hanya kalau ditanya, dan selalu arahkan cek ke sumber resmi. Jangan mengarang tarif atau rute.',
-    searchLocation: { type: 'approximate', city: 'Batam', region: 'Riau Islands', country: 'ID', timezone: 'Asia/Jakarta' }
+    searchLocation: { type: 'approximate', city: 'Batam', region: 'Riau Islands', country: 'ID', timezone: 'Asia/Jakarta' },
+    bias: { latitude: 1.1301, longitude: 104.0529, radius: 30000 }
+  },
+  bandung: {
+    name: 'Bandung',
+    areas: 'Kota Bandung, Cimahi, Lembang, Bandung Barat, Kabupaten Bandung (Dago, Braga, Pasteur, Buah Batu, Antapani, Ciumbuleuit)',
+    notes: 'KONTEKS KOTA: Fokus Bandung Raya. Kuliner khas Sunda dan jajanan Bandung penting (batagor, mie kocok, surabi, cuanki, seblak, nasi timbel, kopi). Banyak mahasiswa (ITB, Unpad, UPI, Telkom University) jadi kos, tempat nongkrong, dan tempat kerja nyaman sering relevan. Akhir pekan dan libur panjang banyak wisatawan dari Jakarta, jadi jalur Dago, Lembang, dan Setiabudi sering padat. Transportasi: angkot, ojol, taksi online, dan kereta atau tol dari Jakarta. Jangan mengarang tarif atau rute, cek lewat pencarian.',
+    searchLocation: { type: 'approximate', city: 'Bandung', region: 'West Java', country: 'ID', timezone: 'Asia/Jakarta' },
+    bias: { latitude: -6.9175, longitude: 107.6191, radius: 30000 }
   }
 };
 
@@ -242,6 +252,7 @@ function cityProfile(city) {
   const c = String(city || '').toLowerCase();
   if (c.includes('padang')) return CITY_PROFILES.padang;
   if (c.includes('batam')) return CITY_PROFILES.batam;
+  if (c.includes('bandung')) return CITY_PROFILES.bandung;
   return CITY_PROFILES.jabodetabek;
 }
 
@@ -408,9 +419,9 @@ const PLACES_FIELDS = [
   'places.photos'
 ].join(',');
 
-async function lookupPlaces(env, hints) {
+async function lookupPlaces(env, hints, city) {
   if (!env.GOOGLE_PLACES_KEY || !Array.isArray(hints) || hints.length === 0) return [];
-  const results = await Promise.all(hints.map(h => lookupOne(env, h).catch(err => {
+  const results = await Promise.all(hints.map(h => lookupOne(env, h, city).catch(err => {
     console.error('places lookup failed', h.name, String(err));
     return null;
   })));
@@ -419,7 +430,8 @@ async function lookupPlaces(env, hints) {
   return results.filter(p => p && !seen.has(p.id) && seen.add(p.id));
 }
 
-async function lookupOne(env, hint) {
+async function lookupOne(env, hint, city) {
+  const bias = cityProfile(city).bias;
   const res = await fetchWithTimeout('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: {
@@ -432,9 +444,9 @@ async function lookupOne(env, hint) {
       languageCode: 'id',
       regionCode: 'ID',
       maxResultCount: 5,
-      // Bias towards Jabodetabek (centre of Jakarta, 50 km radius)
+      // Bias towards the selected city (see CITY_PROFILES)
       locationBias: {
-        circle: { center: { latitude: -6.2, longitude: 106.83 }, radius: 50000 }
+        circle: { center: { latitude: bias.latitude, longitude: bias.longitude }, radius: bias.radius }
       }
     })
   }, 6000);
