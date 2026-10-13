@@ -11,7 +11,7 @@
  * Bindings (wrangler.jsonc → kv_namespaces):
  *   RATE_LIMIT         KV namespace (optional but strongly recommended)
  *
- * Request:  POST { messages: [{role, content}], city: "Jabodetabek" }
+ * Request:  POST { messages: [{role, content}], city: "Jabodetabek", lang: "id" | "en" }
  * Response: { reply, sources: [{ title, url, site }], places: [{ ...card }] }
  */
 
@@ -38,6 +38,7 @@ const ALLOWED_ORIGINS = [
 // ---------------------------------------------------------------------------
 
 export async function handleChat(request, env) {
+  let lang = 'id';
 
   try {
     // 1. Basic origin check (blocks casual abuse from other websites)
@@ -55,15 +56,16 @@ export async function handleChat(request, env) {
     try { body = await request.json(); }
     catch { return json({ reply: 'Format pesan nggak valid.' }, 400); }
 
+    lang = body && body.lang === 'en' ? 'en' : 'id';
     const messages = sanitizeMessages(body.messages);
     if (!messages) {
-      return json({ reply: 'Pesannya kosong atau terlalu panjang. Coba dipersingkat ya!' }, 400);
+      return json({ reply: pick(lang, 'Pesannya kosong atau terlalu panjang. Coba dipersingkat ya!', 'Your message is empty or too long. Please shorten it!') }, 400);
     }
     const city = typeof body.city === 'string' ? body.city.slice(0, 40) : 'Jabodetabek';
 
     // 3. Rate limit per IP
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const limited = await checkRateLimit(env, ip);
+    const limited = await checkRateLimit(env, ip, lang);
     if (limited) {
       return json({ reply: limited }, 429);
     }
@@ -79,25 +81,25 @@ export async function handleChat(request, env) {
     };
 
     // 5. Call Claude
-    const { reply, sources, placeHints } = await askClaude(env, messages, city, userGeo);
+    const { reply, sources, placeHints } = await askClaude(env, messages, city, userGeo, lang);
     console.log('places hints', JSON.stringify(placeHints));
     const places = await lookupPlaces(env, placeHints, city);
     return json({ reply, sources, places });
 
   } catch (err) {
     console.error('chat error:', err && err.stack ? err.stack : err);
-    return json({ reply: 'Waduh, lagi ada gangguan. Coba nanya lagi sebentar lagi ya!' }, 500);
+    return json({ reply: pick(lang, 'Waduh, lagi ada gangguan. Coba nanya lagi sebentar lagi ya!', 'Oops, something went wrong. Please try again in a moment!') }, 500);
   }
 }
 
 // ---------------------------------------------------------------------------
 // Claude
 
-async function askClaude(env, messages, city, userGeo) {
+async function askClaude(env, messages, city, userGeo, lang) {
   const payload = {
     model: env.MODEL || DEFAULT_MODEL,
     max_tokens: LIMITS.maxTokens,
-    system: buildSystemPrompt(city, userGeo),
+    system: buildSystemPrompt(city, userGeo, lang),
     messages,
     tools: [{
       type: 'web_search_20250305',
@@ -172,7 +174,7 @@ async function askClaude(env, messages, city, userGeo) {
       for (const c of tripCalls) {
         let out;
         if (tripBudget-- > 0) {
-          out = await runTripTool(env, c.input || {}, userGeo);
+          out = await runTripTool(env, c.input || {}, userGeo, cityProfile(city));
         } else {
           out = 'Batas cek rute per pertanyaan tercapai. Jawab dengan data yang sudah ada.';
         }
@@ -199,7 +201,7 @@ async function askClaude(env, messages, city, userGeo) {
   if (!placeHints.length) placeHints = extracted.hints;
   if (!placeHints.length) placeHints = hintsFromBullets(rawText);
   const reply = cleanReply(rawText) ||
-    'Hmm, belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!';
+    pick(lang, 'Hmm, belum nemu jawaban yang pas. Coba tanya dengan kata lain ya!', "Hmm, I couldn't find a good answer. Try asking in different words!");
 
   // Up to 4 sources, at most one per website
   const sources = [];
@@ -223,28 +225,32 @@ const CITY_PROFILES = {
     areas: 'Jakarta, Bogor, Depok, Tangerang, Bekasi',
     notes: '',
     searchLocation: { type: 'approximate', city: 'Jakarta', region: 'DKI Jakarta', country: 'ID', timezone: 'Asia/Jakarta' },
-    bias: { latitude: -6.2, longitude: 106.83, radius: 50000 }
+    bias: { latitude: -6.2, longitude: 106.83, radius: 50000 },
+    tripZone: 'II'
   },
   padang: {
     name: 'Padang',
     areas: 'Kota Padang, Padang Panjang, Bukittinggi, Pesisir Selatan, Sumatera Barat',
     notes: 'KONTEKS KOTA: Fokus Kota Padang dan sekitarnya. Kuliner Minang sangat penting (rendang, gulai, sate Padang). Transportasi umum terbatas: angkot, ojek, taksi online. Jangan mengarang tarif atau rute, cek lewat pencarian.',
     searchLocation: { type: 'approximate', city: 'Padang', region: 'West Sumatra', country: 'ID', timezone: 'Asia/Jakarta' },
-    bias: { latitude: -0.9471, longitude: 100.4172, radius: 40000 }
+    bias: { latitude: -0.9471, longitude: 100.4172, radius: 40000 },
+    tripZone: 'I'
   },
   batam: {
     name: 'Batam',
     areas: 'Batam Center, Nagoya, Jodoh, Batu Aji, Sekupang',
     notes: 'KONTEKS KOTA: Fokus Batam. Banyak pekerja industri dan migas serta ekspat yang bergiliran kerja, jadi tempat kerja nyaman, makanan halal, dan akomodasi sering relevan. Info visa atau izin hanya kalau ditanya, dan selalu arahkan cek ke sumber resmi. Jangan mengarang tarif atau rute.',
     searchLocation: { type: 'approximate', city: 'Batam', region: 'Riau Islands', country: 'ID', timezone: 'Asia/Jakarta' },
-    bias: { latitude: 1.1301, longitude: 104.0529, radius: 30000 }
+    bias: { latitude: 1.1301, longitude: 104.0529, radius: 30000 },
+    tripZone: 'I'
   },
   bandung: {
     name: 'Bandung',
     areas: 'Kota Bandung, Cimahi, Lembang, Bandung Barat, Kabupaten Bandung (Dago, Braga, Pasteur, Buah Batu, Antapani, Ciumbuleuit)',
     notes: 'KONTEKS KOTA: Fokus Bandung Raya. Kuliner khas Sunda dan jajanan Bandung penting (batagor, mie kocok, surabi, cuanki, seblak, nasi timbel, kopi). Banyak mahasiswa (ITB, Unpad, UPI, Telkom University) jadi kos, tempat nongkrong, dan tempat kerja nyaman sering relevan. Akhir pekan dan libur panjang banyak wisatawan dari Jakarta, jadi jalur Dago, Lembang, dan Setiabudi sering padat. Transportasi: angkot, ojol, taksi online, dan kereta atau tol dari Jakarta. Jangan mengarang tarif atau rute, cek lewat pencarian.',
     searchLocation: { type: 'approximate', city: 'Bandung', region: 'West Java', country: 'ID', timezone: 'Asia/Jakarta' },
-    bias: { latitude: -6.9175, longitude: 107.6191, radius: 30000 }
+    bias: { latitude: -6.9175, longitude: 107.6191, radius: 30000 },
+    tripZone: 'I'
   }
 };
 
@@ -256,7 +262,7 @@ function cityProfile(city) {
   return CITY_PROFILES.jabodetabek;
 }
 
-function buildSystemPrompt(city, userGeo) {
+function buildSystemPrompt(city, userGeo, lang) {
   const now = new Date().toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -265,6 +271,16 @@ function buildSystemPrompt(city, userGeo) {
 
   const where = [userGeo.city, userGeo.region, userGeo.country].filter(Boolean).join(', ') || 'tidak diketahui';
   const abroad = userGeo.country && userGeo.country !== 'ID';
+
+  // The visitor picked English in the interface: many are tourists or newcomers.
+  const langRule = lang === 'en' ? `
+BAHASA JAWABAN (user memilih antarmuka English)
+- Jawab dalam English yang santai dan jelas, kecuali user jelas menulis dalam bahasa lain (balas dalam bahasa itu).
+- Banyak user adalah turis atau pendatang yang belum paham bahasa Indonesia. Tetap pakai nama asli tempat, jalan, dan makanan (huruf Latin), tapi jelaskan singkat dalam English kalau istilahnya lokal (misal batagor = fried fish dumplings with peanut sauce, kos = monthly room rental, ojol = ride-hailing motorbike taxi, angkot = shared minibus).
+- Harga tetap dalam Rupiah (Rp). Jangan konversi ke mata uang lain.
+- Kalau relevan untuk turis, sebutkan halal atau tidak, cara bayar (tunai atau QRIS), dan cara ke sana (ojol atau taksi online). Jangan mengarang info ini: cek lewat pencarian atau bilang belum tahu.
+- Aturan "saya/kamu" di atas tidak berlaku untuk jawaban English.
+` : '';
 
   return `Kamu adalah NanyaDong — "teman lokal yang tau segalanya" untuk wilayah ${cityProfile(city).name} (${cityProfile(city).areas}). ${cityProfile(city).notes}  ATURAN TEMPAT TUTUP: Jangan rekomendasikan tempat yang sudah tutup permanen atau pindah. Kalau hasil pencarian menyebut tutup permanen, pindah, atau tidak aktif, jangan masukkan. Kalau tidak yakin masih buka, bilang jujur "cek dulu ya sebelum ke sana".
 
@@ -275,9 +291,9 @@ KEPRIBADIAN
 - Ngomong kayak temen yang udah lama tinggal di ${cityProfile(city).name}: santai, hangat, to the point.
 - Selalu pakai "saya/kamu". Kalau user formal atau terkesan lebih tua, pakai "saya/Anda".
 - JANGAN PERNAH pakai "lu", "lo", "elo", "gue", atau "gua", bahkan kalau user sendiri pakai kata-kata itu. Tetap santai dan hangat, tapi sopan.
-- Kalau user nulis dalam English, jawab dalam English yang santai.
+- Kalau user nulis dalam bahasa lain (English, Melayu, Jepang, dll), jawab dalam bahasa itu dengan gaya santai yang sama.
 - Boleh pakai 1–2 emoji, jangan berlebihan.
-
+${langRule}
 TOPIK UTAMA
 Kuliner & nongkrong, ahli & spesialis (tukang pijit, urut, dokter, tukang jahit, dll), tempat menarik & hidden gems, hunian (kos, kontrakan), info sekitar (macet, banjir, demo), serba-serbi (laundry, bengkel, notaris, dll). Pertanyaan di luar itu boleh dijawab singkat, lalu arahkan balik ke hal-hal lokal.
 
@@ -625,7 +641,7 @@ function isAllowedOrigin(origin) {
 // ---------------------------------------------------------------------------
 // Rate limiting (KV). Skipped gracefully if the binding is missing.
 
-async function checkRateLimit(env, ip) {
+async function checkRateLimit(env, ip, lang) {
   if (!env.RATE_LIMIT) return null;
 
   const now = new Date();
@@ -638,10 +654,10 @@ async function checkRateLimit(env, ip) {
   ]);
 
   if (dayCount >= LIMITS.perDay) {
-    return 'Wah, hari ini kamu udah banyak banget nanya 😄 Lanjut besok lagi ya!';
+    return pick(lang, 'Wah, hari ini kamu udah banyak banget nanya 😄 Lanjut besok lagi ya!', "Wow, you've asked a lot today 😄 Come back tomorrow!");
   }
   if (hourCount >= LIMITS.perHour) {
-    return 'Pelan-pelan dulu ya 😄 Coba nanya lagi sekitar satu jam lagi.';
+    return pick(lang, 'Pelan-pelan dulu ya 😄 Coba nanya lagi sekitar satu jam lagi.', 'Slow down a little 😄 Please try again in about an hour.');
   }
 
   await Promise.all([
@@ -652,6 +668,9 @@ async function checkRateLimit(env, ip) {
 }
 
 // ---------------------------------------------------------------------------
+
+// Pick the Indonesian or English variant of a short server message
+function pick(lang, id, en) { return lang === 'en' ? en : id; }
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {

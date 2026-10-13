@@ -15,12 +15,19 @@ const TARIFF_NOTE = `TARIF TRANSPORTASI UMUM (tetap, dicek awal 2026):
 - LRT Jabodebek: Rp5.000-20.000 tergantung jarak
 - Kadang ada promo Rp1 di hari khusus (Lebaran, Hari Angkutan Nasional)`;
 
-// Ojol motor, Kemenhub KP 564/2022, zona II (Jabodetabek). Ini tarif dasar untuk driver;
+// Ojol motor, Kemenhub KP 564/2022 (tarif 2022, bisa sudah berubah). Ini tarif dasar untuk driver;
 // harga di aplikasi bisa lebih tinggi karena biaya aplikasi (markup di bawah = ASUMSI).
-const OJOL = { perKm: [2600, 2700], min: [13000, 13500], minKm: 5, appMarkupHigh: 1.2 };
+// Zona I = Sumatra, Jawa di luar Jabodetabek, Bali (Bandung, Padang, Batam). Zona II = Jabodetabek.
+// minKm = ASUMSI jarak yang tercakup tarif minimal (belum diverifikasi).
+const OJOL_ZONES = {
+  II: { perKm: [2600, 2700], min: [13000, 13500], minKm: 5, appMarkupHigh: 1.2 },
+  I:  { perKm: [1850, 2300], min: [9250, 11500],  minKm: 5, appMarkupHigh: 1.2 }
+};
 const FUEL_RP_PER_KM = 1500;           // ASUMSI kasar biaya BBM mobil, sesuaikan
 const SLOTS = ['09:00', '12:00', '17:30', '20:30'];   // untuk "jam terbaik"
-const JAKARTA_BIAS = { circle: { center: { latitude: -6.2, longitude: 106.83 }, radius: 50000 } };
+// Default city when chat.js does not pass one (same as the original Jakarta-only behaviour)
+const DEFAULT_PROFILE = { name: 'Jabodetabek', tripZone: 'II', bias: { latitude: -6.2, longitude: 106.83, radius: 50000 } };
+const biasFor = (profile) => ({ circle: { center: { latitude: profile.bias.latitude, longitude: profile.bias.longitude }, radius: profile.bias.radius } });
 
 // ---- Tool definition -------------------------------------------------------
 export const TRIP_TOOL = {
@@ -40,7 +47,8 @@ export const TRIP_TOOL = {
 };
 
 // ---- Main ------------------------------------------------------------------
-export async function runTripTool(env, input, cf = {}) {
+export async function runTripTool(env, input, cf = {}, profile = DEFAULT_PROFILE) {
+  const isJabo = profile.name === 'Jabodetabek';
   const key = env.GOOGLE_ROUTES_KEY || env.GOOGLE_PLACES_KEY;
   if (!key) return 'Fitur cek rute belum aktif di server. Jawab tanpa angka rute dan sarankan cek Google Maps.';
 
@@ -49,7 +57,7 @@ export async function runTripTool(env, input, cf = {}) {
     const dest = await findPlace(key,
       [input.destination_name, input.destination_area].filter(Boolean).join(', '),
       'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.parkingOptions,places.priceLevel,places.priceRange',
-      { name: input.destination_name, area: input.destination_area });
+      { name: input.destination_name, area: input.destination_area }, profile);
     if (!dest || !dest.location) {
       return 'Tempat tujuan tidak ketemu di Google Maps. Bilang terus terang dan sarankan cek Google Maps langsung.';
     }
@@ -66,7 +74,7 @@ export async function runTripTool(env, input, cf = {}) {
         return 'ASAL_TIDAK_DIKETAHUI: lokasi user tidak diketahui atau di luar Indonesia. Tanyakan SATU hal: berangkat dari mana? Jangan mengarang angka rute.';
       }
     } else {
-      const op = await findPlace(key, `${originText}, Jabodetabek`, 'places.displayName,places.location');
+      const op = await findPlace(key, `${originText}, ${profile.name}`, 'places.displayName,places.location', null, profile);
       if (!op || !op.location) return `Asal "${originText}" tidak ketemu. Minta user menyebut daerah atau stasiun terdekat.`;
       o = op.location;
       originLabel = op.displayName ? op.displayName.text : originText;
@@ -107,8 +115,9 @@ export async function runTripTool(env, input, cf = {}) {
       s += ' Tol: ' + tollText(drive);
       L.push(s);
       L.push(`[PERKIRAAN] BBM mobil sekitar ${rp(km * FUEL_RP_PER_KM)} (asumsi kasar, belum termasuk tol dan parkir).`);
-      const [lo, hi] = ojolEstimate(km);
-      L.push(`[PERKIRAAN] Ojol motor: ${rp(lo)}-${rp(hi)} (dari tarif batas Kemenhub + biaya aplikasi; harga asli di aplikasi bisa beda, apalagi jam sibuk).`);
+      const zone = profile.tripZone === 'I' ? 'I' : 'II';
+      const [lo, hi] = ojolEstimate(km, zone);
+      L.push(`[PERKIRAAN] Ojol motor: ${rp(lo)}-${rp(hi)} (dari tarif batas Kemenhub 2022 zona ${zone} + biaya aplikasi; harga asli di aplikasi bisa beda, apalagi jam sibuk).`);
     } else {
       L.push('Rute mobil/motor: data tidak tersedia.');
     }
@@ -117,7 +126,7 @@ export async function runTripTool(env, input, cf = {}) {
       const lines = transitSteps(transit);
       let s = `[DATA GOOGLE] Transportasi umum: ${fmtMin(secs(transit.duration))}, ${lines.length} moda: ${lines.join(' -> ') || 'detail tidak tersedia'}.`;
       const fare = transit.travelAdvisory && transit.travelAdvisory.transitFare;
-      s += fare && fare.units ? ` Tarif dari Google: ${rp(Number(fare.units))}.` : ' Tarif: hitung dari tabel tarif di bawah (perkiraan).';
+      s += fare && fare.units ? ` Tarif dari Google: ${rp(Number(fare.units))}.` : (isJabo ? ' Tarif: hitung dari tabel tarif di bawah (perkiraan).' : ' Tarif: tidak ada dari Google. Jangan mengarang, bilang belum diketahui.');
       L.push(s);
     } else {
       L.push('Transportasi umum: tidak ada rute dari Google untuk pasangan asal-tujuan ini (mungkin memang tidak terjangkau).');
@@ -127,7 +136,7 @@ export async function runTripTool(env, input, cf = {}) {
 
     L.push('PARKIR: ' + parkingText(dest.parkingOptions));
     L.push('HARGA MAKAN: ' + priceText(dest));
-    L.push(TARIFF_NOTE);
+    L.push(isJabo ? TARIFF_NOTE : otherCityTariffNote(profile));
     L.push('INSTRUKSI: tulis perbandingan singkat. Tandai angka [PERKIRAAN] dengan kata "perkiraan". Tarif parkir per jam TIDAK ada di data ini; kalau perlu, cari lewat web search atau bilang tarifnya belum diketahui. Jangan mengarang.');
     return L.join('\n');
 
@@ -139,13 +148,13 @@ export async function runTripTool(env, input, cf = {}) {
 
 // ---- Google calls ----------------------------------------------------------
 // With `want` ({name, area}) it fetches up to 5 candidates and picks the best branch.
-async function findPlace(key, query, fields, want) {
+async function findPlace(key, query, fields, want, profile = DEFAULT_PROFILE) {
   const res = await fetchT('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': fields },
     body: JSON.stringify({
       textQuery: query, languageCode: 'id', regionCode: 'ID',
-      maxResultCount: want ? 5 : 1, locationBias: JAKARTA_BIAS
+      maxResultCount: want ? 5 : 1, locationBias: biasFor(profile)
     })
   }, 6000);
   if (!res.ok) { console.error('trip places', res.status, (await res.text()).slice(0, 300)); return null; }
@@ -196,9 +205,15 @@ const secs = v => parseInt(String(v || '0').replace('s', ''), 10) || 0;
 const fmtMin = s => { const m = Math.round(s / 60); return m >= 60 ? `${Math.floor(m / 60)} jam ${m % 60} mnt` : `${m} mnt`; };
 const rp = n => 'Rp' + (Math.round(n / 1000) * 1000).toLocaleString('id-ID');
 
-function ojolEstimate(km) {
-  const f = (perKm, min) => km <= OJOL.minKm ? min : min + (km - OJOL.minKm) * perKm;
-  return [f(OJOL.perKm[0], OJOL.min[0]), f(OJOL.perKm[1], OJOL.min[1]) * OJOL.appMarkupHigh];
+function ojolEstimate(km, zone = 'II') {
+  const Z = OJOL_ZONES[zone] || OJOL_ZONES.II;
+  const f = (perKm, min) => km <= Z.minKm ? min : min + (km - Z.minKm) * perKm;
+  return [f(Z.perKm[0], Z.min[0]), f(Z.perKm[1], Z.min[1]) * Z.appMarkupHigh];
+}
+
+// Jakarta fares must never be applied to other cities
+function otherCityTariffNote(profile) {
+  return `TARIF TRANSPORTASI UMUM: tidak ada tabel tarif tetap untuk ${profile.name} di data ini. Pakai tarif dari Google kalau ada. Kalau tidak ada, jangan mengarang tarif bus kota, angkot, atau kereta: bilang tarifnya belum diketahui dan sarankan cek di aplikasi atau tanya sopir. Jangan pakai tarif Transjakarta, KRL, MRT, atau LRT Jakarta.`;
 }
 
 function tollText(route) {
