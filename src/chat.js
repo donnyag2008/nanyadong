@@ -484,7 +484,12 @@ async function lookupOne(env, hint, city) {
     return null;
   }
 
-  // Never show a place that Google says has closed for good   if (p.businessStatus === 'CLOSED_PERMANENTLY') {     console.log('places: permanently closed, skipped', p.displayName && p.displayName.text);     return null;   }   return buildCard(env, p, hint.area);
+  // Never show a place that Google says has closed for good
+  if (p.businessStatus === 'CLOSED_PERMANENTLY') {
+    console.log('places: permanently closed, skipped', p.displayName && p.displayName.text);
+    return null;
+  }
+  return buildCard(env, p, hint.area);
 }
 
 // Turn a Places API (New) place object into the card the browser renders
