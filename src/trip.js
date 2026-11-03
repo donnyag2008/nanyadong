@@ -67,9 +67,11 @@ export async function runTripTool(env, input, cf = {}, profile = DEFAULT_PROFILE
     let o, originLabel;
     if (!originText || originText.toLowerCase() === 'lokasi_saya') {
       const lat = Number(cf.latitude), lng = Number(cf.longitude);
-      if (cf.country === 'ID' && Number.isFinite(lat) && Number.isFinite(lng)) {
+      if ((cf.precise || cf.country === 'ID') && Number.isFinite(lat) && Number.isFinite(lng)) {
         o = { latitude: lat, longitude: lng };
-        originLabel = `${cf.city || 'lokasi user'} (perkiraan kasar dari jaringan, bisa meleset beberapa km)`;
+        originLabel = cf.precise
+          ? 'lokasi user saat ini (dari GPS HP, akurat sekitar 100 m)'
+          : `${cf.city || 'lokasi user'} (perkiraan kasar dari jaringan, bisa meleset beberapa km). Sarankan user menekan tombol "📍 Pakai lokasi saya" untuk angka yang lebih akurat.`;
       } else {
         return 'ASAL_TIDAK_DIKETAHUI: lokasi user tidak diketahui atau di luar Indonesia. Tanyakan SATU hal: berangkat dari mana? Jangan mengarang angka rute.';
       }

@@ -80,6 +80,17 @@ export async function handleChat(request, env) {
       longitude: cf.longitude || null
     };
 
+    // 4b. Precise location, only sent when the user tapped "Pakai lokasi saya"
+    //     (browser permission). Accepted only inside Indonesia, rounded to ~100 m,
+    //     used for this request only and never stored.
+    const g = body.geo;
+    if (g && Number.isFinite(g.lat) && Number.isFinite(g.lng) &&
+        g.lat > -11.5 && g.lat < 6.5 && g.lng > 94 && g.lng < 141.5) {
+      userGeo.latitude = Math.round(g.lat * 1000) / 1000;
+      userGeo.longitude = Math.round(g.lng * 1000) / 1000;
+      userGeo.precise = true;
+    }
+
     // 5. Call Claude
     const { reply, sources, placeHints } = await askClaude(env, messages, city, userGeo, lang);
     console.log('places hints', JSON.stringify(placeHints));
@@ -270,7 +281,10 @@ function buildSystemPrompt(city, userGeo, lang) {
   });
 
   const where = [userGeo.city, userGeo.region, userGeo.country].filter(Boolean).join(', ') || 'tidak diketahui';
-  const abroad = userGeo.country && userGeo.country !== 'ID';
+  const abroad = !userGeo.precise && userGeo.country && userGeo.country !== 'ID';
+  const preciseNote = userGeo.precise
+    ? ' User sudah membagikan lokasi persis dari HP-nya. Untuk pertanyaan "terdekat", "dari sini", atau rute tanpa asal yang disebut, pakai origin "lokasi_saya". Jangan sebut koordinat di jawaban.'
+    : '';
 
   // The visitor picked English in the interface: many are tourists or newcomers.
   const langRule = lang === 'en' ? `
@@ -285,7 +299,7 @@ BAHASA JAWABAN (user memilih antarmuka English)
   return `Kamu adalah NanyaDong — "teman lokal yang tau segalanya" untuk wilayah ${cityProfile(city).name} (${cityProfile(city).areas}). ${cityProfile(city).notes}  ATURAN TEMPAT TUTUP: Jangan rekomendasikan tempat yang sudah tutup permanen atau pindah. Kalau hasil pencarian menyebut tutup permanen, pindah, atau tidak aktif, jangan masukkan. Kalau tidak yakin masih buka, bilang jujur "cek dulu ya sebelum ke sana".
 
 SEKARANG: ${now} WIB.
-PERKIRAAN LOKASI USER: ${where}.${abroad ? ' User kemungkinan orang Indonesia di luar negeri atau sedang merencanakan perjalanan — jangan anggap dia sedang di Jakarta sekarang.' : ''}
+PERKIRAAN LOKASI USER: ${where}.${abroad ? ' User kemungkinan orang Indonesia di luar negeri atau sedang merencanakan perjalanan — jangan anggap dia sedang di Jakarta sekarang.' : ''}${preciseNote}
 
 KEPRIBADIAN
 - Ngomong kayak temen yang udah lama tinggal di ${cityProfile(city).name}: santai, hangat, to the point.
@@ -329,7 +343,8 @@ FORMAT JAWABAN
 
 INFO PERJALANAN
 - Kalau user nanya soal menuju sebuah tempat (berapa lama, ongkos, naik apa, parkir, jam berangkat, biaya makan di sana), panggil get_trip_info SEBELUM menulis jawaban. Maksimal untuk 1-2 tempat.
-- Asal: pakai yang disebut user. Kalau tidak disebut, isi origin dengan "lokasi_saya". Kalau hasil tool bilang asal tidak diketahui, tanya SATU hal: berangkat dari mana?
+- Asal: pakai yang disebut user. Kalau tidak disebut, isi origin dengan "lokasi_saya". Kalau hasil tool bilang asal tidak diketahui, tanya SATU hal: berangkat dari mana? Boleh tambahkan bahwa user bisa menekan tombol "📍 Pakai lokasi saya" di atas kolom chat.
+- Di bawah kartu foto sudah ada tombol Rute (buka petunjuk arah di Google Maps) dan Salin alamat (buat ditempel di Grab atau Gojek). Kalau user nanya cara pesan ojol atau taksi online ke sana, arahkan ke tombol itu. Jangan mengarang link aplikasi Grab atau Gojek.
 - Kalau user nanya jam terbaik atau menghindari macet, set compare_times=true.
 - Angka berlabel [DATA GOOGLE] boleh disebut apa adanya. Angka berlabel [PERKIRAAN] harus disebut sebagai "perkiraan". Tarif parkir per jam jangan dikarang: cari lewat web search atau bilang belum tahu.
 - Format: tiga baris perbandingan diawali "• " (mobil/motor pribadi, ojol, transportasi umum), lalu satu baris parkir dan harga makan, lalu satu saran singkat (mana yang paling masuk akal dan jam berangkat terbaik). Untuk pertanyaan perjalanan, batas kata boleh sampai 250.
