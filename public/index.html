@@ -434,6 +434,25 @@
   .place-rating span { color: var(--ink-3); font-weight: 500; }
   .place-addr { font-size: 12px; color: var(--ink-2); line-height: 1.35; }
   .place-maps { margin-top: auto; padding-top: 6px; font-size: 12px; font-weight: 700; color: var(--pandan); }
+  .place-actions { margin-top: auto; padding-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .place-actions + .place-maps { margin-top: 0; }
+  .place-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    font: 700 12px/1 'Plus Jakarta Sans', system-ui, sans-serif;
+    padding: 7px 10px; border-radius: 999px; cursor: pointer; text-decoration: none;
+    border: 1px solid var(--line); background: #fff; color: var(--pandan-dark);
+  }
+  .place-btn.primary { background: var(--pandan); border-color: var(--pandan); color: #fff; }
+  .place-btn:hover { border-color: var(--pandan); }
+  .geo-row { max-width: 820px; margin: 0 auto 8px; display: flex; align-items: center; gap: 8px; }
+  .geo-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 600 12.5px/1 'Plus Jakarta Sans', system-ui, sans-serif;
+    padding: 7px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; color: var(--ink-2);
+  }
+  .geo-chip.on { background: var(--serba-tint); border-color: var(--pandan); color: var(--pandan-dark); }
+  .geo-note { font-size: 11.5px; color: var(--ink-3); }
   .place-credit { font-size: 10.5px; color: var(--ink-3); padding: 0 12px 8px; }
   .place-credit a { color: inherit; }
   .places-restore {
@@ -616,6 +635,10 @@
     </div>
   </div>
   <div class="chat-input-bar">
+    <div class="geo-row">
+      <button type="button" class="geo-chip" id="geoBtn" aria-pressed="false">📍 Pakai lokasi saya</button>
+      <span class="geo-note" id="geoNote">buat rute & tempat terdekat yang lebih akurat</span>
+    </div>
     <div class="chat-input-wrap">
       <input type="text" class="chat-input" id="chatInput" placeholder="Nanya lagi..." autocomplete="off" aria-label="Tulis pertanyaan">
       <button class="chat-send" id="chatSend" type="button" aria-label="Kirim">
@@ -1095,6 +1118,43 @@
         a.textContent = p.address;
         body.appendChild(a);
       }
+      // Actions: directions in Google Maps, and copy the address for Grab/Gojek
+      const acts = document.createElement('div');
+      acts.className = 'place-actions';
+      if (p.id) {
+        const dir = document.createElement('a');
+        dir.className = 'place-btn primary';
+        dir.href = 'https://www.google.com/maps/dir/?api=1&destination=' +
+          encodeURIComponent(p.name + (p.address ? ', ' + p.address : '')) +
+          '&destination_place_id=' + encodeURIComponent(p.id);
+        dir.target = '_blank'; dir.rel = 'noopener noreferrer';
+        dir.textContent = '🧭 Rute';
+        acts.appendChild(dir);
+      }
+      if (p.address) {
+        const cp = document.createElement('button');
+        cp.type = 'button';
+        cp.className = 'place-btn';
+        cp.textContent = '📋 Salin alamat';
+        cp.title = 'Salin nama dan alamat, lalu tempel di Grab atau Gojek';
+        cp.addEventListener('click', async () => {
+          const txt = p.name + ', ' + p.address;
+          let ok = false;
+          try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) {}
+          if (!ok) {
+            const ta = document.createElement('textarea');
+            ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            try { ok = document.execCommand('copy'); } catch (e) {}
+            ta.remove();
+          }
+          cp.textContent = ok ? '✓ Tersalin, tempel di Grab/Gojek' : 'Gagal menyalin';
+          setTimeout(() => { cp.textContent = '📋 Salin alamat'; }, 2500);
+        });
+        acts.appendChild(cp);
+      }
+      if (acts.children.length) body.appendChild(acts);
+
       if (p.mapsUrl && /^https:\/\//.test(p.mapsUrl)) {
         const m = document.createElement('a');
         m.className = 'place-maps';
@@ -1227,6 +1287,42 @@
     scrollToBottom();
   }
 
+  /* ---------- Precise location (opt-in, kept in memory for this visit only) ---------- */
+  let userLoc = null;
+  const geoBtn = document.getElementById('geoBtn');
+  const geoNote = document.getElementById('geoNote');
+  function setGeoUI(state, note) {
+    geoBtn.classList.toggle('on', state === 'on');
+    geoBtn.setAttribute('aria-pressed', state === 'on' ? 'true' : 'false');
+    geoBtn.textContent = state === 'on' ? '📍 Lokasi aktif ✓'
+      : state === 'busy' ? '📍 Mencari lokasi...' : '📍 Pakai lokasi saya';
+    geoNote.textContent = note;
+  }
+  geoBtn.addEventListener('click', () => {
+    if (userLoc) {                      // tap again to switch it off
+      userLoc = null;
+      setGeoUI('off', 'lokasi tidak dipakai lagi');
+      return;
+    }
+    if (!('geolocation' in navigator)) {
+      setGeoUI('off', 'browser ini tidak mendukung lokasi');
+      return;
+    }
+    setGeoUI('busy', '');
+    navigator.geolocation.getCurrentPosition(pos => {
+      userLoc = {
+        lat: Math.round(pos.coords.latitude * 1000) / 1000,
+        lng: Math.round(pos.coords.longitude * 1000) / 1000
+      };
+      setGeoUI('on', 'dipakai untuk rute, tidak disimpan · ketuk lagi untuk mematikan');
+    }, err => {
+      userLoc = null;
+      setGeoUI('off', err && err.code === 1
+        ? 'izin lokasi ditolak, sebut saja asal kamu di chat'
+        : 'lokasi belum ketemu, coba lagi atau sebut asal kamu');
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
+  });
+
   async function sendMessage(text) {
     if (!text.trim() || sending) return;
     sending = true;
@@ -1241,7 +1337,10 @@
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: conversationHistory, city: currentCity })
+        body: JSON.stringify(Object.assign(
+          { messages: conversationHistory, city: currentCity },
+          userLoc ? { geo: userLoc } : {}
+        ))
       });
       const data = await res.json();
       const reply = data.reply || 'Maaf, lagi ada gangguan. Coba nanya lagi ya!';
@@ -1282,4 +1381,4 @@
 </script>
 
 </body>
-</html>
+</html>
