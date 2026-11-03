@@ -499,7 +499,10 @@ async function buildCard(env, p, fallbackAddress) {
   let photo = null;
   const ph = Array.isArray(p.photos) ? p.photos[0] : null;
   if (ph && ph.name) {
-    photo = await getPhotoUrl(env, ph.name).catch(() => null);
+    photo = await getPhotoUrl(env, ph.name).catch(err => {
+      console.error('Places photo failed', String(err));
+      return null;
+    });
     if (photo) {
       const author = Array.isArray(ph.authorAttributions) ? ph.authorAttributions[0] : null;
       photo = {
@@ -590,8 +593,12 @@ async function getPhotoUrl(env, photoName) {
   const res = await fetchWithTimeout(url, {
     headers: { 'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY }
   }, 5000);
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.error('Places photo', res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
   const data = await res.json();
+  if (!data.photoUri) console.error('Places photo: no photoUri', JSON.stringify(data).slice(0, 300));
   return data.photoUri || null;
 }
 
