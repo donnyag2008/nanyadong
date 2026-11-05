@@ -7,7 +7,8 @@ const NAME_STOP = new Set(['rm', 'rumah', 'makan', 'restoran', 'restaurant', 'wa
 
 // Words too generic to tell one branch from another
 const AREA_STOP = new Set(['kota', 'kab', 'kabupaten', 'jalan', 'raya', 'indonesia', 'jawa', 'barat', 'timur',
-  'selatan', 'utara', 'pusat', 'jakarta', 'bekasi', 'bogor', 'depok', 'tangerang', 'banten', 'dki']);
+  'selatan', 'utara', 'pusat', 'jakarta', 'bekasi', 'bogor', 'depok', 'tangerang', 'banten', 'dki',
+  'london', 'greater', 'england', 'united', 'kingdom', 'road', 'street']);
 
 const tokens = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9 ]/g, ' ')
   .split(/\s+/).filter(Boolean);

@@ -15,7 +15,7 @@
  * Response: { reply, sources: [{ title, url, site }], places: [{ ...card }] }
  */
 
-import { TRIP_TOOL, runTripTool } from './trip.js';
+import { TRIP_TOOL, runTripTool, NEARBY_TOOL, runNearbyTool, tzOffset } from './trip.js';
 import { pickBest } from './match.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-5';
@@ -27,7 +27,7 @@ const LIMITS = {
   maxChars: 1000,       // max characters per user message
   maxSearches: 3,       // web searches per question (cost control)
   maxTokens: 1500,
-  maxTripCalls: 2       // get_trip_info calls per question (cost control)
+  maxTripCalls: 3       // get_trip_info + find_nearby calls per question (cost control)
 };
 
 const ALLOWED_ORIGINS = [
@@ -81,11 +81,12 @@ export async function handleChat(request, env) {
     };
 
     // 4b. Precise location, only sent when the user tapped "Pakai lokasi saya"
-    //     (browser permission). Accepted only inside Indonesia, rounded to ~100 m,
-    //     used for this request only and never stored.
+    //     (browser permission). Accepted only inside Indonesia or the UK (London),
+    //     rounded to ~100 m, used for this request only and never stored.
     const g = body.geo;
-    if (g && Number.isFinite(g.lat) && Number.isFinite(g.lng) &&
-        g.lat > -11.5 && g.lat < 6.5 && g.lng > 94 && g.lng < 141.5) {
+    const inIndonesia = gg => gg.lat > -11.5 && gg.lat < 6.5 && gg.lng > 94 && gg.lng < 141.5;
+    const inUK = gg => gg.lat > 49.8 && gg.lat < 61 && gg.lng > -8.7 && gg.lng < 2;
+    if (g && Number.isFinite(g.lat) && Number.isFinite(g.lng) && (inIndonesia(g) || inUK(g))) {
       userGeo.latitude = Math.round(g.lat * 1000) / 1000;
       userGeo.longitude = Math.round(g.lng * 1000) / 1000;
       userGeo.precise = true;
@@ -115,10 +116,10 @@ async function askClaude(env, messages, city, userGeo, lang) {
     tools: [{
       type: 'web_search_20250305',
       name: 'web_search',
-      max_uses: LIMITS.maxSearches,
+      max_uses: cityProfile(city).maxSearches || LIMITS.maxSearches,
             // Search results localised to the chosen city, even for diaspora users abroad
       user_location: cityProfile(city).searchLocation
-    }, PLACE_CARDS_TOOL, TRIP_TOOL]
+    }, PLACE_CARDS_TOOL, TRIP_TOOL, NEARBY_TOOL]
   };
 
   let convo = [...messages];
@@ -158,7 +159,7 @@ async function askClaude(env, messages, city, userGeo, lang) {
         toolHints = (toolHints || []).concat(list);
         continue;
       }
-      if (block.type === 'tool_use' && block.name === 'get_trip_info') {
+      if (block.type === 'tool_use' && (block.name === 'get_trip_info' || block.name === 'find_nearby')) {
         tripCalls.push(block);
         continue;
       }
@@ -185,9 +186,11 @@ async function askClaude(env, messages, city, userGeo, lang) {
       for (const c of tripCalls) {
         let out;
         if (tripBudget-- > 0) {
-          out = await runTripTool(env, c.input || {}, userGeo, cityProfile(city));
+          out = c.name === 'find_nearby'
+            ? await runNearbyTool(env, c.input || {}, userGeo, cityProfile(city))
+            : await runTripTool(env, c.input || {}, userGeo, cityProfile(city));
         } else {
-          out = 'Batas cek rute per pertanyaan tercapai. Jawab dengan data yang sudah ada.';
+          out = 'Batas cek rute/lokasi per pertanyaan tercapai. Jawab dengan data yang sudah ada.';
         }
         results.push({ type: 'tool_result', tool_use_id: c.id, content: out });
       }
@@ -237,7 +240,8 @@ const CITY_PROFILES = {
     notes: '',
     searchLocation: { type: 'approximate', city: 'Jakarta', region: 'DKI Jakarta', country: 'ID', timezone: 'Asia/Jakarta' },
     bias: { latitude: -6.2, longitude: 106.83, radius: 50000 },
-    tripZone: 'II'
+    tripZone: 'II',
+    country: 'ID', regionCode: 'ID', currency: 'IDR', timeZone: 'Asia/Jakarta', tzLabel: 'WIB'
   },
   padang: {
     name: 'Padang',
@@ -245,7 +249,8 @@ const CITY_PROFILES = {
     notes: 'KONTEKS KOTA: Fokus Kota Padang dan sekitarnya. Kuliner Minang sangat penting (rendang, gulai, sate Padang). Transportasi umum terbatas: angkot, ojek, taksi online. Jangan mengarang tarif atau rute, cek lewat pencarian.',
     searchLocation: { type: 'approximate', city: 'Padang', region: 'West Sumatra', country: 'ID', timezone: 'Asia/Jakarta' },
     bias: { latitude: -0.9471, longitude: 100.4172, radius: 40000 },
-    tripZone: 'I'
+    tripZone: 'I',
+    country: 'ID', regionCode: 'ID', currency: 'IDR', timeZone: 'Asia/Jakarta', tzLabel: 'WIB'
   },
   batam: {
     name: 'Batam',
@@ -253,7 +258,8 @@ const CITY_PROFILES = {
     notes: 'KONTEKS KOTA: Fokus Batam. Banyak pekerja industri dan migas serta ekspat yang bergiliran kerja, jadi tempat kerja nyaman, makanan halal, dan akomodasi sering relevan. Info visa atau izin hanya kalau ditanya, dan selalu arahkan cek ke sumber resmi. Jangan mengarang tarif atau rute.',
     searchLocation: { type: 'approximate', city: 'Batam', region: 'Riau Islands', country: 'ID', timezone: 'Asia/Jakarta' },
     bias: { latitude: 1.1301, longitude: 104.0529, radius: 30000 },
-    tripZone: 'I'
+    tripZone: 'I',
+    country: 'ID', regionCode: 'ID', currency: 'IDR', timeZone: 'Asia/Jakarta', tzLabel: 'WIB'
   },
   bandung: {
     name: 'Bandung',
@@ -261,7 +267,32 @@ const CITY_PROFILES = {
     notes: 'KONTEKS KOTA: Fokus Bandung Raya. Kuliner khas Sunda dan jajanan Bandung penting (batagor, mie kocok, surabi, cuanki, seblak, nasi timbel, kopi). Banyak mahasiswa (ITB, Unpad, UPI, Telkom University) jadi kos, tempat nongkrong, dan tempat kerja nyaman sering relevan. Akhir pekan dan libur panjang banyak wisatawan dari Jakarta, jadi jalur Dago, Lembang, dan Setiabudi sering padat. Transportasi: angkot, ojol, taksi online, dan kereta atau tol dari Jakarta. Jangan mengarang tarif atau rute, cek lewat pencarian.',
     searchLocation: { type: 'approximate', city: 'Bandung', region: 'West Java', country: 'ID', timezone: 'Asia/Jakarta' },
     bias: { latitude: -6.9175, longitude: 107.6191, radius: 30000 },
-    tripZone: 'I'
+    tripZone: 'I',
+    country: 'ID', regionCode: 'ID', currency: 'IDR', timeZone: 'Asia/Jakarta', tzLabel: 'WIB'
+  },
+  london: {
+    name: 'London',
+    areas: 'Greater London (Central, Bayswater/Queensway, Chinatown/Soho, Earls Court, Wimbledon, Croydon, Colindale, Stratford, Wembley, dll)',
+    notes: `KONTEKS KOTA: Fokus London (Greater London). User kebanyakan diaspora Indonesia (pelajar, pekerja, keluarga) dan turis dari Indonesia atau Malaysia. Harga dalam Poundsterling (£), JANGAN konversi ke Rupiah kecuali diminta. Transportasi: Tube, bus, Overground, Elizabeth line, DLR, kereta National Rail, jalan kaki, sepeda, taksi; TIDAK ADA ojol, Grab, atau Gojek.
+
+KEBUTUHAN KHAS DIASPORA DI LONDON
+- Bahan makanan Indonesia atau Asia (tahu, tempe, kecap manis ABC atau Bango, sambal, Indomie, bumbu instan, pandan, kerupuk, beras): cari toko Indonesia, toko Asia atau Oriental supermarket, dan toko di Chinatown yang dekat area user lewat web search. Sebut barang tertentu dijual di sana hanya kalau sumbernya menyebut; kalau tidak, bilang "biasanya ada di toko Asia, tapi cek stoknya dulu". Kalau ketemu, tambahkan satu opsi toko online di UK. Jangan mengarang stok atau harga.
+- Restoran Indonesia, Malaysia, Singapura, dan Asia Tenggara lain: untuk SETIAP restoran yang kamu rekomendasikan, cari menu atau ulasan terbarunya, lalu sebut 1-2 menu andalan atau favorit dengan harga per porsi (£) kalau ketemu di menu online atau ulasan baru, plus perkiraan total per orang. Bilang harga bisa sudah berubah. Kalau harga tidak ketemu, bilang belum tahu, jangan menebak.
+- Halal: sebut halal hanya kalau sumber jelas menyebut (situs restoran atau sertifikasi). Kalau tidak jelas, bilang "cek dulu soal halalnya".
+- Masjid dan prayer room: untuk "terdekat", pakai find_nearby (query "mosque" lalu "prayer room" kalau perlu). Banyak mall besar, kampus, rumah sakit, dan beberapa bandara atau stasiun besar punya prayer room atau multi-faith room; sebut hanya yang terkonfirmasi dari data atau pencarian. Jadwal salat beda tiap masjid dan metode hitungnya, jadi kalau ditanya, cari jadwal masjid terdekat lewat web search dan sebut sumbernya. JANGAN menyebut jam salat dari ingatan.
+- KBRI London, komunitas Indonesia, pengajian: info praktis boleh kalau ditanya, cek lewat pencarian.
+
+CARA KERJA UNTUK LONDON (lakukan berurutan, jangan langsung jawab dari ingatan)
+1. Cari tempatnya lewat web search (atau find_nearby untuk pertanyaan "terdekat").
+2. Untuk 2-3 tempat teratas, cari menu andalan dan harganya (restoran) atau barang yang dijual (toko).
+3. Kalau user menyebut asal atau lokasinya aktif, panggil get_trip_info untuk 1-2 tempat teratas.
+4. Tulis jawaban.
+5. Panggil show_place_cards untuk tempat yang kamu sebut.`,
+    searchLocation: { type: 'approximate', city: 'London', region: 'England', country: 'GB', timezone: 'Europe/London' },
+    bias: { latitude: 51.5074, longitude: -0.1278, radius: 50000 },
+    country: 'GB', regionCode: 'GB', currency: 'GBP', timeZone: 'Europe/London', tzLabel: 'waktu London',
+    emergency: '999 (darurat polisi, ambulans, pemadam) atau 111 (NHS, bukan darurat)',
+    maxSearches: 5      // dish + price lookups need a few more searches than Indonesian cities
   }
 };
 
@@ -270,18 +301,21 @@ function cityProfile(city) {
   if (c.includes('padang')) return CITY_PROFILES.padang;
   if (c.includes('batam')) return CITY_PROFILES.batam;
   if (c.includes('bandung')) return CITY_PROFILES.bandung;
+  if (c.includes('london')) return CITY_PROFILES.london;
   return CITY_PROFILES.jabodetabek;
 }
 
 function buildSystemPrompt(city, userGeo, lang) {
+  const P = cityProfile(city);
+  const inID = P.country === 'ID';
   const now = new Date().toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta',
+    timeZone: P.timeZone,
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
 
   const where = [userGeo.city, userGeo.region, userGeo.country].filter(Boolean).join(', ') || 'tidak diketahui';
-  const abroad = !userGeo.precise && userGeo.country && userGeo.country !== 'ID';
+  const abroad = !userGeo.precise && userGeo.country && userGeo.country !== P.country;
   const preciseNote = userGeo.precise
     ? ' User sudah membagikan lokasi persis dari HP-nya. Untuk pertanyaan "terdekat", "dari sini", atau rute tanpa asal yang disebut, pakai origin "lokasi_saya". Jangan sebut koordinat di jawaban.'
     : '';
@@ -291,18 +325,18 @@ function buildSystemPrompt(city, userGeo, lang) {
 BAHASA JAWABAN (user memilih antarmuka English)
 - Jawab dalam English yang santai dan jelas, kecuali user jelas menulis dalam bahasa lain (balas dalam bahasa itu).
 - Banyak user adalah turis atau pendatang yang belum paham bahasa Indonesia. Tetap pakai nama asli tempat, jalan, dan makanan (huruf Latin), tapi jelaskan singkat dalam English kalau istilahnya lokal (misal batagor = fried fish dumplings with peanut sauce, kos = monthly room rental, ojol = ride-hailing motorbike taxi, angkot = shared minibus).
-- Harga tetap dalam Rupiah (Rp). Jangan konversi ke mata uang lain.
-- Kalau relevan untuk turis, sebutkan halal atau tidak, cara bayar (tunai atau QRIS), dan cara ke sana (ojol atau taksi online). Jangan mengarang info ini: cek lewat pencarian atau bilang belum tahu.
+- ${inID ? 'Harga tetap dalam Rupiah (Rp)' : 'Harga dalam Pound (£)'}. Jangan konversi ke mata uang lain.
+- Kalau relevan untuk turis, sebutkan halal atau tidak, cara bayar (${inID ? 'tunai atau QRIS' : 'kartu atau contactless'}), dan cara ke sana (${inID ? 'ojol atau taksi online' : 'Tube, bus, jalan kaki, atau taksi'}). Jangan mengarang info ini: cek lewat pencarian atau bilang belum tahu.
 - Aturan "saya/kamu" di atas tidak berlaku untuk jawaban English.
 ` : '';
 
   return `Kamu adalah NanyaDong — "teman lokal yang tau segalanya" untuk wilayah ${cityProfile(city).name} (${cityProfile(city).areas}). ${cityProfile(city).notes}  ATURAN TEMPAT TUTUP: Jangan rekomendasikan tempat yang sudah tutup permanen atau pindah. Kalau hasil pencarian menyebut tutup permanen, pindah, atau tidak aktif, jangan masukkan. Kalau tidak yakin masih buka, bilang jujur "cek dulu ya sebelum ke sana".
 
-SEKARANG: ${now} WIB.
+SEKARANG: ${now} ${P.tzLabel || ''} (zona waktu ${P.timeZone}, offset ${tzOffset(P.timeZone, new Date())}; pakai offset ini untuk depart_at).
 PERKIRAAN LOKASI USER: ${where}.${abroad ? ' User kemungkinan orang Indonesia di luar negeri atau sedang merencanakan perjalanan — jangan anggap dia sedang di Jakarta sekarang.' : ''}${preciseNote}
 
 KEPRIBADIAN
-- Ngomong kayak temen yang udah lama tinggal di ${cityProfile(city).name}: santai, hangat, to the point.
+- Ngomong kayak temen yang udah lama tinggal di ${P.name}: santai, hangat, to the point.
 - Selalu pakai "saya/kamu". Kalau user formal atau terkesan lebih tua, pakai "saya/Anda".
 - JANGAN PERNAH pakai "lu", "lo", "elo", "gue", atau "gua", bahkan kalau user sendiri pakai kata-kata itu. Tetap santai dan hangat, tapi sopan.
 - Kalau user nulis dalam bahasa lain (English, Melayu, Jepang, dll), jawab dalam bahasa itu dengan gaya santai yang sama.
@@ -320,7 +354,7 @@ KEJUJURAN — PALING PENTING
 
 KESEHATAN & KESELAMATAN
 - Untuk urut, pijat saraf, keluhan badan, atau dokter: boleh kasih rekomendasi, tapi ingatkan singkat untuk ke dokter kalau sakitnya parah, mati rasa, atau nggak membaik.
-- Kalau ada keadaan darurat, arahkan ke 112 atau 119 (ambulans).
+- Kalau ada keadaan darurat, arahkan ke ${P.emergency || '112 atau 119 (ambulans)'}.
 
 EMAS & PEGADAIAN
 - Untuk beli emas (Antam, UBS, Galeri24, dinar), gadai, tabungan emas, atau cicil emas: arahkan ke tempat resmi saja, misalnya Butik Emas Logam Mulia (Antam), kantor cabang Pegadaian, atau gerai Galeri24. Untuk dinar, sebut penjual hanya kalau bisa dicek lewat web search dan Google Maps. Kalau nggak nemu yang jelas di kota itu, bilang terus terang.
@@ -344,10 +378,11 @@ FORMAT JAWABAN
 INFO PERJALANAN
 - Kalau user nanya soal menuju sebuah tempat (berapa lama, ongkos, naik apa, parkir, jam berangkat, biaya makan di sana), panggil get_trip_info SEBELUM menulis jawaban. Maksimal untuk 1-2 tempat.
 - Asal: pakai yang disebut user. Kalau tidak disebut, isi origin dengan "lokasi_saya". Kalau hasil tool bilang asal tidak diketahui, tanya SATU hal: berangkat dari mana? Boleh tambahkan bahwa user bisa menekan tombol "📍 Pakai lokasi saya" di atas kolom chat.
-- Di bawah kartu foto sudah ada tombol Rute (buka petunjuk arah di Google Maps) dan Salin alamat (buat ditempel di Grab atau Gojek). Kalau user nanya cara pesan ojol atau taksi online ke sana, arahkan ke tombol itu. Jangan mengarang link aplikasi Grab atau Gojek.
+- Di bawah kartu foto sudah ada tombol Rute (buka petunjuk arah di Google Maps) dan Salin alamat (buat ditempel di ${inID ? 'Grab atau Gojek' : 'aplikasi taksi'}). Kalau user nanya cara pesan ${inID ? 'ojol atau taksi online' : 'taksi'} ke sana, arahkan ke tombol itu. Jangan mengarang link aplikasi.
 - Kalau user nanya jam terbaik atau menghindari macet, set compare_times=true.
+- Untuk pertanyaan "terdekat", "dekat sini", atau "sekitar <tempat>" (masjid, musholla, prayer room, toko, apotek, dll), panggil find_nearby dulu, bukan web search.
 - Angka berlabel [DATA GOOGLE] boleh disebut apa adanya. Angka berlabel [PERKIRAAN] harus disebut sebagai "perkiraan". Tarif parkir per jam jangan dikarang: cari lewat web search atau bilang belum tahu.
-- Format: tiga baris perbandingan diawali "• " (mobil/motor pribadi, ojol, transportasi umum), lalu satu baris parkir dan harga makan, lalu satu saran singkat (mana yang paling masuk akal dan jam berangkat terbaik). Untuk pertanyaan perjalanan, batas kata boleh sampai 250.
+- Format: ${inID ? 'tiga baris perbandingan diawali "• " (mobil/motor pribadi, ojol, transportasi umum)' : 'baris perbandingan diawali "• ": transportasi umum (jalur Tube/bus dan tarif kalau ada), jalan kaki kalau dekat, lalu mobil atau taksi'}, lalu satu baris ${inID ? 'parkir dan harga makan' : 'harga makan'}, lalu satu saran singkat (mana yang paling masuk akal dan jam berangkat terbaik). Untuk pertanyaan perjalanan, batas kata boleh sampai 250.
 - Kalau asal dari user cuma nama kawasan (misal "Bekasi Timur"), bilang angka rute dihitung dari titik tengah kawasan itu, dan ajak user kasih alamat, mall, atau stasiun asal kalau mau lebih akurat.
 - Jangan mengulang poin yang sama dua kali dan jangan menyimpulkan hal yang tidak ada di data (misal rute KRL). Kalau jaraknya dekat, cukup bilang transportasi umum kurang praktis.
 - Tulis dengan kalimat sederhana dan jelas, hindari kata yang bikin bingung.
@@ -482,7 +517,7 @@ async function lookupOne(env, hint, city) {
     body: JSON.stringify({
       textQuery: [hint.name, hint.area].filter(Boolean).join(', '),
       languageCode: 'id',
-      regionCode: 'ID',
+      regionCode: cityProfile(city).regionCode || 'ID',
       maxResultCount: 5,
       // Bias towards the selected city (see CITY_PROFILES)
       locationBias: {
