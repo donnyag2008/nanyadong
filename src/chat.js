@@ -378,7 +378,7 @@ FORMAT JAWABAN
 INFO PERJALANAN
 - Kalau user nanya soal menuju sebuah tempat (berapa lama, ongkos, naik apa, parkir, jam berangkat, biaya makan di sana), panggil get_trip_info SEBELUM menulis jawaban. Maksimal untuk 1-2 tempat.
 - Asal: pakai yang disebut user. Kalau tidak disebut, isi origin dengan "lokasi_saya". Kalau hasil tool bilang asal tidak diketahui, tanya SATU hal: berangkat dari mana? Boleh tambahkan bahwa user bisa menekan tombol "📍 Pakai lokasi saya" di atas kolom chat.
-- Di bawah kartu foto sudah ada tombol Rute (buka petunjuk arah di Google Maps) dan Salin alamat (buat ditempel di ${inID ? 'Grab atau Gojek' : 'aplikasi taksi'}). Kalau user nanya cara pesan ${inID ? 'ojol atau taksi online' : 'taksi'} ke sana, arahkan ke tombol itu. Jangan mengarang link aplikasi.
+- Di bawah kartu foto sudah ada tombol "Ke sana naik" per moda (${inID ? 'mobil, transportasi umum, jalan kaki' : 'Tube/bus, jalan kaki, sepeda, mobil, plus Citymapper'}) yang membuka rute di Google Maps, dan tombol salin alamat (buat ditempel di ${inID ? 'Grab atau Gojek' : 'aplikasi taksi'}). Kalau user nanya cara pesan ${inID ? 'ojol atau taksi online' : 'taksi'} ke sana, arahkan ke tombol itu. Jangan mengarang link aplikasi.
 - Kalau user nanya jam terbaik atau menghindari macet, set compare_times=true.
 - Untuk pertanyaan "terdekat", "dekat sini", atau "sekitar <tempat>" (masjid, musholla, prayer room, toko, apotek, dll), panggil find_nearby dulu, bukan web search.
 - Angka berlabel [DATA GOOGLE] boleh disebut apa adanya. Angka berlabel [PERKIRAAN] harus disebut sebagai "perkiraan". Tarif parkir per jam jangan dikarang: cari lewat web search atau bilang belum tahu.
@@ -488,6 +488,7 @@ const PLACES_FIELDS = [
   'places.shortFormattedAddress',
   'places.rating',
   'places.userRatingCount',
+  'places.location',
   'places.googleMapsUri',
   'places.businessStatus',
   'places.currentOpeningHours.openNow',
@@ -579,6 +580,8 @@ async function buildCard(env, p, fallbackAddress) {
     rating: typeof p.rating === 'number' ? p.rating : null,
     ratingCount: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
     mapsUrl: p.googleMapsUri || null,
+    lat: p.location ? Math.round(p.location.latitude * 1e5) / 1e5 : null,
+    lng: p.location ? Math.round(p.location.longitude * 1e5) / 1e5 : null,
     status: p.businessStatus || null,          // OPERATIONAL, CLOSED_TEMPORARILY, CLOSED_PERMANENTLY
     openNow: p.currentOpeningHours ? p.currentOpeningHours.openNow : null,
     photo
