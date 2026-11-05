@@ -549,6 +549,7 @@
       <button class="city-option" data-city="padang" type="button">Padang</button>
       <button class="city-option" data-city="batam" type="button">Batam</button>
       <button class="city-option" data-city="bandung" type="button">Bandung</button>
+      <button class="city-option" data-city="london" type="button">London 🇬🇧</button>
     </div>
   </div>
 </header>
@@ -813,6 +814,47 @@
         'Tukang urut deket Buah Batu ada?',
         'Kos deket ITB harganya berapa?',
         'Hidden gem di Lembang?'
+      ]
+    },
+    london: {
+      label: 'London',
+      heroTitle: 'Mau nanya apa hari ini?',
+      heroSub: 'Toko bahan Indonesia, restoran Malaysia dan Indonesia, masjid terdekat, cara ke sana naik Tube atau bus — tanya kayak ke temen yang udah lama tinggal di London.',
+      thread: [
+        { cat: 'serba',   q: 'Beli tahu, tempe, dan kecap manis di London di mana?' },
+        { cat: 'kuliner', q: 'Restoran Malaysia enak di London, menu andalannya apa?' },
+        { cat: 'tempat',  q: 'Masjid atau prayer room terdekat dari Oxford Street?' },
+        { cat: 'kuliner', q: 'Nasi Padang atau rendang enak di London ada?' },
+        { cat: 'info',    q: 'Dari Wimbledon ke Bayswater paling cepat naik apa?' },
+        { cat: 'serba',   q: 'Indomie dan sambal ABC paling murah beli di mana?' },
+        { cat: 'kuliner', q: 'Kopi tubruk atau kopi Indonesia di London?' },
+        { cat: 'tempat',  q: 'Masjid terdekat dari stasiun King’s Cross?' }
+      ],
+      questions: [
+        { cat: 'serba',   title: 'Tahu, tempe & kecap manis di London', ask: 'Di London beli tahu, tempe, dan kecap manis (ABC atau Bango) di mana ya? Yang dekat stasiun Tube.' },
+        { cat: 'kuliner', title: 'Restoran Malaysia + menu favoritnya', ask: 'Restoran Malaysia yang enak di London di mana? Sebutin menu andalannya dan harganya ya.' },
+        { cat: 'tempat',  title: 'Masjid atau prayer room terdekat', ask: 'Masjid atau prayer room terdekat dari lokasi saya di mana?' },
+        { cat: 'kuliner', title: 'Restoran Indonesia paling otentik', ask: 'Restoran Indonesia paling otentik di London yang mana? Menu andalannya apa dan harganya berapa?' },
+        { cat: 'kuliner', title: 'Nasi lemak dan roti canai di Queensway', ask: 'Nasi lemak atau roti canai enak di sekitar Queensway atau Bayswater?' },
+        { cat: 'info',    title: 'Naik Tube, bus, atau jalan kaki?', ask: 'Dari Wimbledon ke Chinatown paling cepat dan murah naik apa?' },
+        { cat: 'serba',   title: 'Toko Asia lengkap di London', ask: 'Toko Asia atau Oriental supermarket yang paling lengkap di London di mana?' },
+        { cat: 'kuliner', title: 'Makanan halal enak dekat Oxford Street', ask: 'Makanan halal yang enak dekat Oxford Street apa aja?' },
+        { cat: 'ahli',    title: 'Tukang pijat atau urut ala Indonesia', ask: 'Ada tukang pijat atau urut ala Indonesia di London?' }
+      ],
+      categories: [
+        { cat: 'kuliner', ask: 'Rekomendasiin restoran Indonesia atau Malaysia enak di London dong, sekalian menu andalannya' },
+        { cat: 'ahli',    ask: 'Cariin ahli atau spesialis yang bagus di London dong, yang ramah buat orang Indonesia' },
+        { cat: 'tempat',  ask: 'Masjid atau prayer room terdekat dari lokasi saya di mana?' },
+        { cat: 'hunian',  ask: 'Cariin info sewa kamar atau flat buat pelajar Indonesia di London dong' },
+        { cat: 'info',    ask: 'Ada gangguan Tube atau mogok kerja transportasi di London hari ini?' },
+        { cat: 'serba',   ask: 'Beli bahan makanan Indonesia seperti tahu, tempe, dan kecap manis di London di mana?' }
+      ],
+      placeholders: [
+        'Beli tahu dan kecap manis di London?',
+        'Restoran Malaysia enak di Queensway?',
+        'Masjid terdekat dari sini?',
+        'Rendang enak di London?',
+        'Dari Wimbledon ke Bayswater naik apa?'
       ]
     }
   };
@@ -1381,4 +1423,4 @@
 </script>
 
 </body>
-</html>
+</html>
