@@ -112,6 +112,7 @@
   }
   .city-option:hover { background: var(--wash); }
   .city-option.active { background: var(--serba-tint); color: var(--pandan); }
+  .city-option.city-auto { font-weight: 600; border-bottom: 1px solid var(--wash); }
 
   /* ---------- Hero ---------- */
   .hero {
@@ -545,6 +546,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div class="city-menu" id="cityMenu">
+      <button class="city-option city-auto" id="cityAuto" type="button">📍 Sesuai lokasi saya</button>
       <button class="city-option" data-city="jabodetabek" type="button">Jabodetabek</button>
       <button class="city-option" data-city="padang" type="button">Padang</button>
       <button class="city-option" data-city="batam" type="button">Batam</button>
@@ -871,7 +873,12 @@
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- City switching ---------- */
-  let currentCity = localStorage.getItem('nanyadong-city') || 'jabodetabek';
+  // Opening the app picks the city the visitor is in (see "Auto city" below).
+  // A city picked by hand wins for the rest of this visit (sessionStorage).
+  const safeGet = (st, k) => { try { return st.getItem(k); } catch { return null; } };
+  const safeSet = (st, k, v) => { try { v == null ? st.removeItem(k) : st.setItem(k, v); } catch {} };
+  let currentCity = safeGet(sessionStorage, 'nanyadong-city-manual')
+    || safeGet(localStorage, 'nanyadong-city') || 'jabodetabek';
   const cityBtn = document.getElementById('cityBtn');
   const cityMenu = document.getElementById('cityMenu');
   const cityLabel = document.getElementById('cityLabel');
@@ -880,7 +887,7 @@
   function setCity(cityKey) {
     if (!CITIES[cityKey]) return;
     currentCity = cityKey;
-    localStorage.setItem('nanyadong-city', cityKey);
+    safeSet(localStorage, 'nanyadong-city', cityKey);
     const city = CITIES[cityKey];
     
     cityLabel.textContent = city.label;
@@ -902,9 +909,61 @@
   });
 
   cityOptions.forEach(opt => {
+    if (!opt.dataset.city) return;               // the "Sesuai lokasi saya" item
     opt.addEventListener('click', () => {
+      safeSet(sessionStorage, 'nanyadong-city-manual', opt.dataset.city);
       setCity(opt.dataset.city);
     });
+  });
+
+  /* ---------- Auto city from the visitor's location ---------- */
+  // Centre and radius (km) of each city's coverage area.
+  const CITY_AREAS = {
+    jabodetabek: { lat: -6.30, lng: 106.85, km: 65 },
+    bandung:     { lat: -6.92, lng: 107.62, km: 45 },
+    padang:      { lat: -0.70, lng: 100.40, km: 90 },   // incl. Padang Panjang, Bukittinggi
+    batam:       { lat: 1.10,  lng: 104.05, km: 40 },
+    london:      { lat: 51.51, lng: -0.13,  km: 50 }
+  };
+  function cityForPoint(lat, lng) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    let best = null, bestKm = Infinity;
+    for (const [key, a] of Object.entries(CITY_AREAS)) {
+      const r = x => x * Math.PI / 180;
+      const h = Math.sin(r(a.lat - lat) / 2) ** 2 +
+        Math.cos(r(lat)) * Math.cos(r(a.lat)) * Math.sin(r(a.lng - lng) / 2) ** 2;
+      const km = 12742 * Math.asin(Math.sqrt(h));
+      if (km <= a.km && km < bestKm) { best = key; bestKm = km; }
+    }
+    return best;
+  }
+  // Switch to the city at this point, unless the visitor picked one by hand.
+  function autoCityFrom(lat, lng, force) {
+    if (!force && safeGet(sessionStorage, 'nanyadong-city-manual')) return false;
+    const key = cityForPoint(lat, lng);
+    if (!key) return false;
+    if (key !== currentCity) setCity(key);
+    return true;
+  }
+  async function detectCity(force) {
+    try {
+      const res = await fetch('/api/where', { cache: 'no-store' });
+      if (!res.ok) return false;
+      const w = await res.json();
+      return autoCityFrom(Number(w.lat), Number(w.lng), force);
+    } catch { return false; }
+  }
+  document.getElementById('cityAuto').addEventListener('click', async () => {
+    safeSet(sessionStorage, 'nanyadong-city-manual', null);
+    cityMenu.classList.remove('open');
+    // Precise location if already on, otherwise the approximate one
+    const ok = (typeof userLoc !== 'undefined' && userLoc)
+      ? autoCityFrom(userLoc.lat, userLoc.lng, true)
+      : await detectCity(true);
+    if (!ok) {
+      cityLabel.textContent = 'Lokasi di luar area';
+      setTimeout(() => setCity(currentCity), 2200);
+    }
   });
 
   document.addEventListener('click', (e) => {
@@ -1350,6 +1409,10 @@
       setGeoUI('off', 'browser ini tidak mendukung lokasi');
       return;
     }
+    requestPreciseLocation(true);
+  });
+  function requestPreciseLocation(fromButton) {
+    if (!('geolocation' in navigator)) return;
     setGeoUI('busy', '');
     navigator.geolocation.getCurrentPosition(pos => {
       userLoc = {
@@ -1357,13 +1420,25 @@
         lng: Math.round(pos.coords.longitude * 1000) / 1000
       };
       setGeoUI('on', 'dipakai untuk rute, tidak disimpan · ketuk lagi untuk mematikan');
+      // Tapping the button means "use where I am now": follow it even over a manual pick
+      if (fromButton) safeSet(sessionStorage, 'nanyadong-city-manual', null);
+      autoCityFrom(userLoc.lat, userLoc.lng, fromButton);
     }, err => {
       userLoc = null;
       setGeoUI('off', err && err.code === 1
         ? 'izin lokasi ditolak, sebut saja asal kamu di chat'
         : 'lokasi belum ketemu, coba lagi atau sebut asal kamu');
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 });
-  });
+  }
+  // If the visitor allowed location on an earlier visit, use it straight away
+  // (no new permission prompt). Otherwise keep the button opt-in.
+  async function preciseIfAllowed() {
+    try {
+      if (!navigator.permissions || !('geolocation' in navigator)) return;
+      const st = await navigator.permissions.query({ name: 'geolocation' });
+      if (st.state === 'granted') requestPreciseLocation(false);
+    } catch {}
+  }
 
   async function sendMessage(text) {
     if (!text.trim() || sending) return;
@@ -1418,8 +1493,10 @@
   chatSend.addEventListener('click', () => sendMessage(chatInput.value));
   chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(chatInput.value); });
 
-  /* Initial render */
+  /* Initial render: last city first (no waiting), then the visitor's location */
   setCity(currentCity);
+  detectCity(false);
+  preciseIfAllowed();
 </script>
 
 </body>
