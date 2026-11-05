@@ -437,6 +437,9 @@
   .place-maps { margin-top: auto; padding-top: 6px; font-size: 12px; font-weight: 700; color: var(--pandan); }
   .place-actions { margin-top: auto; padding-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
   .place-actions + .place-maps { margin-top: 0; }
+  .place-modes-label { margin-top: auto; padding-top: 8px; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .place-modes { padding-top: 5px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .place-modes + .place-actions { margin-top: 0; padding-top: 6px; }
   .place-btn {
     display: inline-flex; align-items: center; gap: 4px;
     font: 700 12px/1 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -1229,25 +1232,53 @@
         a.textContent = p.address;
         body.appendChild(a);
       }
-      // Actions: directions in Google Maps, and copy the address for Grab/Gojek
+      // How to get there: one button per transport mode, each opening Google Maps
+      // directions in that mode from the user's current position (Maps fills it in).
+      const isLondon = currentCity === 'london';
+      if (p.id) {
+        const modes = isLondon
+          ? [['transit', '🚇 Tube/bus'], ['walking', '🚶 Jalan'], ['bicycling', '🚲 Sepeda'], ['driving', '🚗 Mobil']]
+          : [['driving', '🚗 Mobil'], ['transit', '🚆 Umum'], ['walking', '🚶 Jalan']];
+        const lbl = document.createElement('div');
+        lbl.className = 'place-modes-label';
+        lbl.textContent = 'Ke sana naik:';
+        body.appendChild(lbl);
+        const row = document.createElement('div');
+        row.className = 'place-modes';
+        modes.forEach(([mode, text], i) => {
+          const a = document.createElement('a');
+          a.className = 'place-btn' + (i === 0 ? ' primary' : '');
+          a.href = 'https://www.google.com/maps/dir/?api=1&destination=' +
+            encodeURIComponent(p.name + (p.address ? ', ' + p.address : '')) +
+            '&destination_place_id=' + encodeURIComponent(p.id) + '&travelmode=' + mode;
+          a.target = '_blank'; a.rel = 'noopener noreferrer';
+          a.title = 'Buka rute ' + text.replace(/^\S+\s/, '') + ' di Google Maps';
+          a.textContent = text;
+          row.appendChild(a);
+        });
+        // London: Citymapper is popular for Tube/bus planning
+        if (isLondon && Number.isFinite(p.lat) && Number.isFinite(p.lng)) {
+          const cm = document.createElement('a');
+          cm.className = 'place-btn';
+          cm.href = 'https://citymapper.com/directions?endcoord=' + p.lat + ',' + p.lng +
+            '&endname=' + encodeURIComponent(p.name) + (p.address ? '&endaddress=' + encodeURIComponent(p.address) : '');
+          cm.target = '_blank'; cm.rel = 'noopener noreferrer';
+          cm.title = 'Buka rute di Citymapper';
+          cm.textContent = '🗺️ Citymapper';
+          row.appendChild(cm);
+        }
+        body.appendChild(row);
+      }
+      // Copy the address for Grab/Gojek (or Uber in London)
       const acts = document.createElement('div');
       acts.className = 'place-actions';
-      if (p.id) {
-        const dir = document.createElement('a');
-        dir.className = 'place-btn primary';
-        dir.href = 'https://www.google.com/maps/dir/?api=1&destination=' +
-          encodeURIComponent(p.name + (p.address ? ', ' + p.address : '')) +
-          '&destination_place_id=' + encodeURIComponent(p.id);
-        dir.target = '_blank'; dir.rel = 'noopener noreferrer';
-        dir.textContent = '🧭 Rute';
-        acts.appendChild(dir);
-      }
       if (p.address) {
         const cp = document.createElement('button');
         cp.type = 'button';
         cp.className = 'place-btn';
-        cp.textContent = '📋 Salin alamat';
-        cp.title = 'Salin nama dan alamat, lalu tempel di Grab atau Gojek';
+        cp.textContent = isLondon ? '📋 Salin alamat (taksi)' : '🛵 Ojol: salin alamat';
+        cp.title = isLondon ? 'Salin nama dan alamat, lalu tempel di Uber atau aplikasi taksi'
+          : 'Salin nama dan alamat, lalu tempel di Grab atau Gojek';
         cp.addEventListener('click', async () => {
           const txt = p.name + ', ' + p.address;
           let ok = false;
@@ -1259,8 +1290,9 @@
             try { ok = document.execCommand('copy'); } catch (e) {}
             ta.remove();
           }
-          cp.textContent = ok ? '✓ Tersalin, tempel di Grab/Gojek' : 'Gagal menyalin';
-          setTimeout(() => { cp.textContent = '📋 Salin alamat'; }, 2500);
+          const idle = cp.textContent;
+          cp.textContent = ok ? (isLondon ? '✓ Tersalin, tempel di aplikasi taksi' : '✓ Tersalin, tempel di Grab/Gojek') : 'Gagal menyalin';
+          setTimeout(() => { cp.textContent = idle; }, 2500);
         });
         acts.appendChild(cp);
       }
