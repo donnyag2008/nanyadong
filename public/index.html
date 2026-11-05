@@ -472,6 +472,16 @@
     font-size: 12px; white-space: normal;
   }
   .sources-label { color: var(--ink-3); font-weight: 600; margin-right: 2px; }
+  .msg-share { margin-top: 10px; display: flex; }
+  .share-wa {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid #25D366; color: #128C4A;
+    border-radius: 999px; padding: 6px 13px;
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    text-decoration: none; cursor: pointer; white-space: nowrap;
+  }
+  .share-wa:hover { background: #25D366; color: #fff; }
+  .share-wa svg { width: 15px; height: 15px; flex: none; }
   .source-chip {
     display: inline-flex; align-items: center; gap: 4px;
     max-width: 220px;
@@ -1108,7 +1118,7 @@
   function renderChat() {
     chatMessages.innerHTML = '';
     addMessage('bot', GREETING, null, null, false);
-    chatLog.forEach(m => addMessage(m.type, m.text, m.sources, null, false, m.placeIds));
+    chatLog.forEach(m => addMessage(m.type, m.text, m.sources, null, false, m.placeIds, m.type === 'bot'));
     rendered = true;
   }
 
@@ -1346,7 +1356,43 @@
     return btn;
   }
 
-  function addMessage(type, text, sources, places, persist, placeIds) {
+  /* ---------- Share an answer to WhatsApp ---------- */
+  let lastQuestion = '';
+  function shareText(question, answer, places, placeIds) {
+    const L = [];
+    if (question) L.push('❓ ' + question, '');
+    L.push(answer.trim());
+    const links = [];
+    if (Array.isArray(places) && places.length) {
+      places.forEach(p => {
+        if (p && p.name && p.mapsUrl && /^https:\/\//.test(p.mapsUrl)) links.push('📍 ' + p.name + ': ' + p.mapsUrl);
+      });
+    } else if (Array.isArray(placeIds)) {
+      placeIds.forEach(id => links.push('📍 https://www.google.com/maps/place/?q=place_id:' + encodeURIComponent(id)));
+    }
+    if (links.length) L.push('', ...links.slice(0, 5));
+    L.push('', 'Tanya lagi di NanyaDong 👉 https://nanyadong.com');
+    let out = L.join('\n');
+    if (out.length > 3500) out = out.slice(0, 3400) + '…\n\nhttps://nanyadong.com';
+    return out;
+  }
+  function buildShareButton(question, answer, places, placeIds) {
+    const row = document.createElement('div');
+    row.className = 'msg-share';
+    const a = document.createElement('a');
+    a.className = 'share-wa';
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.href = 'https://wa.me/?text=' + encodeURIComponent(shareText(question, answer, places, placeIds));
+    a.setAttribute('aria-label', 'Bagikan jawaban ini ke WhatsApp');
+    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.5 7.4L3 20.5l1.6-5.3A8.5 8.5 0 1 1 21 11.5z"/></svg>';
+    a.appendChild(document.createTextNode('Bagikan ke WhatsApp'));
+    row.appendChild(a);
+    return row;
+  }
+
+  function addMessage(type, text, sources, places, persist, placeIds, shareable = persist) {
+    if (type === 'user') lastQuestion = text;
     if (persist) {
       const ids = Array.isArray(places) ? places.map(p => p && p.id).filter(Boolean) : [];
       chatLog.push({ type, text, sources: sources || null, placeIds: ids.length ? ids : null });
@@ -1382,6 +1428,10 @@
         box.appendChild(a);
       });
       div.appendChild(box);
+    }
+
+    if (type === 'bot' && shareable && text && text.trim().length > 20) {
+      div.appendChild(buildShareButton(lastQuestion, text, places, placeIds));
     }
 
     chatMessages.appendChild(div);
